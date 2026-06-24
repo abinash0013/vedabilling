@@ -1,0 +1,21 @@
+{
+  "extends": "@react-native/typescript-config/tsconfig.json",
+  "compilerOptions": {
+    "jsx": "react-jsx"
+  }
+}
+
+// {
+//   "extends": "@react-native/typescript-config/tsconfig.json",
+//   "include": ["**/*.ts", "**/*.tsx", "nativewind-env.d.ts"]
+// }
+
+// {
+//   "extends": "@react-native/typescript-config",
+//   "compilerOptions": {
+//     "jsx": "react-native",
+//     "allowJs": true,
+//     "esModuleInterop": true,
+//     "skipLibCheck": true
+//   }
+// }
