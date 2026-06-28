@@ -13,6 +13,7 @@ import {
   Alert,
 } from 'react-native';
 import React from 'react';
+import {useNavigation} from '@react-navigation/native';
 import {Plus, X} from 'lucide-react-native';
 
 const COLORS = {
@@ -93,11 +94,16 @@ const invoices = [
 ];
 
 const PATIENTS = [
-  { id: 'PS', name: 'Priya Sharma',    reg: 'VMCPTREG-0124', lastVisit: '18 Jun' },
-  { id: 'RV', name: 'Rohit Verma',     reg: 'VMCPTREG-0098', lastVisit: '20 Jun' },
-  { id: 'AC', name: 'Anita Choudhary', reg: 'VMCPTREG-0145', lastVisit: '15 Jun' },
-  { id: 'SM', name: 'Suresh Mehta',    reg: 'VMCPTREG-0067', lastVisit: '10 Jun' },
-  { id: 'KJ', name: 'Kavita Joshi',    reg: 'VMCPTREG-0156', lastVisit: '21 Jun' },
+  {id: 'PS', name: 'Priya Sharma', reg: 'VMCPTREG-0124', lastVisit: '18 Jun'},
+  {id: 'RV', name: 'Rohit Verma', reg: 'VMCPTREG-0098', lastVisit: '20 Jun'},
+  {
+    id: 'AC',
+    name: 'Anita Choudhary',
+    reg: 'VMCPTREG-0145',
+    lastVisit: '15 Jun',
+  },
+  {id: 'SM', name: 'Suresh Mehta', reg: 'VMCPTREG-0067', lastVisit: '10 Jun'},
+  {id: 'KJ', name: 'Kavita Joshi', reg: 'VMCPTREG-0156', lastVisit: '21 Jun'},
 ];
 
 const statusStyles = {
@@ -166,8 +172,7 @@ function PatientRow({item, isLast, onSelect}: any) {
     <TouchableOpacity
       activeOpacity={0.7}
       style={[styles.patientRow, isLast && styles.patientRowLast]}
-      onPress={() => onSelect(item)}
-    >
+      onPress={() => onSelect(item)}>
       <Avatar initials={item.id} />
       <View style={styles.patientInfo}>
         <Text style={styles.patientName}>{item.name}</Text>
@@ -187,25 +192,27 @@ export default function Dashboard() {
   const [newAddress, setNewAddress] = React.useState('');
 
   const filtered = PATIENTS.filter(
-    (p) =>
+    p =>
       p.name.toLowerCase().includes(query.toLowerCase()) ||
-      p.reg.toLowerCase().includes(query.toLowerCase())
+      p.reg.toLowerCase().includes(query.toLowerCase()),
   );
 
   const handleSelectPatient = (patient: any) => {
     Alert.alert(
       'Patient Selected',
       `${patient.name} auto-filled. Proceeding to Step 2.`,
-      [{ text: 'OK' }]
+      [{text: 'OK'}],
     );
   };
 
+  const navigation = useNavigation<any>();
+
   const handleUseNewPatient = () => {
     if (!newName.trim()) {
-      Alert.alert('Required', 'Please enter the patient\'s full name.');
+      Alert.alert('Required', "Please enter the patient's full name.");
       return;
     }
-    Alert.alert('New Patient', `${newName} added. Proceeding to Step 2.`);
+    navigation.navigate('NewInvoice');
   };
 
   return (
@@ -248,7 +255,10 @@ export default function Dashboard() {
         activeOpacity={0.8}
         style={styles.fab}
         onPress={() => setInvoiceModal(true)}>
-        <Plus size={24} color="#FFFFFF" strokeWidth={2.5} />
+        <View style={{flexDirection: 'row', alignItems: 'center', gap: 6}}>
+          <Text style={{color: '#fff', fontWeight: 'bold'}}>New Invoice</Text>
+          <Plus size={18} color="#FFFFFF" strokeWidth={2.5} />
+        </View>
       </TouchableOpacity>
 
       {/* New Invoice Modal */}
@@ -288,7 +298,8 @@ export default function Dashboard() {
               />
 
               <Text style={styles.hint}>
-                Tap a patient to auto-fill their details, or add a new one below.
+                Tap a patient to auto-fill their details, or add a new one
+                below.
               </Text>
 
               {/* Patient list */}
@@ -303,7 +314,9 @@ export default function Dashboard() {
                     />
                   ))
                 ) : (
-                  <Text style={styles.emptyText}>No patients match your search.</Text>
+                  <Text style={styles.emptyText}>
+                    No patients match your search.
+                  </Text>
                 )}
               </View>
 
@@ -349,8 +362,7 @@ export default function Dashboard() {
               <TouchableOpacity
                 style={styles.useBtn}
                 activeOpacity={0.85}
-                onPress={handleUseNewPatient}
-              >
+                onPress={handleUseNewPatient}>
                 <Text style={styles.useBtnText}>Use This New Patient</Text>
               </TouchableOpacity>
 
@@ -676,10 +688,11 @@ const styles = StyleSheet.create({
   // FAB
   fab: {
     position: 'absolute',
-    right: 20,
-    bottom: 24,
-    width: 56,
-    height: 56,
+    right: 15,
+    bottom: 4,
+    // width: 56,
+    height: 46,
+    paddingHorizontal: 12,
     borderRadius: 28,
     backgroundColor: COLORS.teal,
     alignItems: 'center',
