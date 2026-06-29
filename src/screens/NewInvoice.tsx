@@ -78,6 +78,8 @@ export default function NewInvoiceStep2({navigation}: any) {
   const [isAdvance, setIsAdvance] = useState(true);
   const [payments, setPayments] = useState([{amount: '500', method: 'UPI'}]);
   const [showMethodPicker, setShowMethodPicker] = useState<number | null>(null);
+  const [note, setNote] = useState('');
+  const [showNoteInput, setShowNoteInput] = useState(false);
 
   const payable = Math.max(
     0,
@@ -123,7 +125,10 @@ export default function NewInvoiceStep2({navigation}: any) {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backBtn} activeOpacity={0.8}>
+          <TouchableOpacity
+            style={styles.backBtn}
+            activeOpacity={0.8}
+            onPress={() => navigation.goBack()}>
             <Text style={styles.backArrow}>←</Text>
           </TouchableOpacity>
           <Text style={styles.headerTitle}>New Invoice</Text>
@@ -400,12 +405,30 @@ export default function NewInvoiceStep2({navigation}: any) {
                 <Text style={styles.statusBadgeText}>{getStatus()}</Text>
               </View>
             </View>
-          </View>
 
-          {/* Note / Remarks */}
-          <TouchableOpacity style={styles.noteBtn} activeOpacity={0.8}>
-            <Text style={styles.noteBtnText}>+ Add note / remarks</Text>
-          </TouchableOpacity>
+            {/* Note / Remarks */}
+            <TouchableOpacity
+              style={styles.noteBtn}
+              activeOpacity={0.8}
+              onPress={() => setShowNoteInput(!showNoteInput)}>
+              <Text style={styles.noteBtnText}>
+                {note ? 'Edit note / remarks' : '+ Add note / remarks'}
+              </Text>
+            </TouchableOpacity>
+            {showNoteInput && (
+              <TextInput
+                style={styles.noteInput}
+                placeholder="Enter note or remarks..."
+                placeholderTextColor={COLORS.placeholder}
+                value={note}
+                onChangeText={setNote}
+                multiline
+              />
+            )}
+            {note && !showNoteInput && (
+              <Text style={styles.noteDisplay}>{note}</Text>
+            )}
+          </View>
 
           {/* Action Buttons */}
           <View style={styles.actionRow}>
@@ -420,6 +443,7 @@ export default function NewInvoiceStep2({navigation}: any) {
               activeOpacity={0.85}
               onPress={() =>
                 navigation.navigate('PreviewInvoice', {
+                  note,
                   patient: {name: 'New Patient', reg: 'VMCPTREG-0157'},
                   billing: {
                     invoiceNo: 'VMC-INV-260621-03',
@@ -753,6 +777,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   noteBtnText: {fontSize: 14, fontWeight: '700', color: COLORS.teal},
+  noteInput: {
+    marginHorizontal: 0,
+    marginTop: 8,
+    borderWidth: 1.5,
+    borderColor: COLORS.teal,
+    borderRadius: 12,
+    padding: 12,
+    fontSize: 14,
+    color: COLORS.textPrimary,
+    backgroundColor: COLORS.card,
+    minHeight: 80,
+    textAlignVertical: 'top',
+  },
+  noteDisplay: {
+    marginHorizontal: 20,
+    marginTop: 8,
+    padding: 12,
+    fontSize: 13,
+    color: COLORS.textPrimary,
+    backgroundColor: COLORS.tealLight,
+    borderRadius: 10,
+    lineHeight: 18,
+  },
 
   // Actions
   actionRow: {flexDirection: 'row', gap: 10},

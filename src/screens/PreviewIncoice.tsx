@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {useState} from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,7 @@ const COLORS = {
   tealLight: '#D6EAE7',
   bg: '#EFF5F4',
   card: '#FFFFFF',
+  placeholder: '#AABFBC',
   textPrimary: '#1A2E2B',
   textSecondary: '#7A9490',
   textMuted: '#9AAFAC',
@@ -34,13 +35,6 @@ function SectionCard({title, onEdit, children}: any) {
     <View style={styles.card}>
       <View style={styles.cardHeader}>
         <Text style={styles.cardTitle}>{title}</Text>
-        <TouchableOpacity
-          style={styles.editBtn}
-          onPress={onEdit}
-          activeOpacity={0.7}>
-          <Text style={styles.editIcon}>✏️</Text>
-          <Text style={styles.editText}>Edit</Text>
-        </TouchableOpacity>
       </View>
       {children}
     </View>
@@ -65,7 +59,8 @@ function DashedDivider() {
 }
 
 export default function ReviewInvoiceScreen({navigation, route}: any) {
-  const {patient, billing, amount} = route.params || {
+  const {patient, billing, amount, note} = route.params || {
+    note: '',
     patient: {name: '', reg: ''},
     billing: {invoiceNo: '', date: '', due: '', type: '', service: ''},
     amount: {
@@ -79,56 +74,163 @@ export default function ReviewInvoiceScreen({navigation, route}: any) {
       isAdvance: false,
     },
   };
-
-  const handleEdit = (section: string) => {
-    Alert.alert('Edit', `Going back to edit ${section}…`);
+  const handleEdit = () => {
+    navigation.goBack();
   };
 
   const handleGenerate = async () => {
     try {
+      const fmt = (n: number) => '\u20B9' + Number(n).toLocaleString('en-IN');
+      const paymentsHtml = (amount.payments || [])
+        .map(
+          (p: any) =>
+            `<tr><td style="padding:8px 12px;color:#7A9490;font-size:13px">Paid — ${
+              p.method
+            }${
+              p.mode === 'advance' ? ' (advance)' : ''
+            }</td><td style="padding:8px 12px;text-align:right;font-size:13px;color:#1A2E2B">${fmt(
+              p.amount,
+            )}</td></tr>`,
+        )
+        .join('');
+
       const h = [
         '<html><head><style>',
-        'body{font-family:Helvetica Neue,Helvetica,Arial,sans-serif;padding:40px;color:#1A2E2B}',
-        'h1{color:#2E7D72;font-size:24px;margin-bottom:4px}',
-        '.s{color:#7A9490;font-size:14px;margin-bottom:24px}',
-        'table{width:100%;border-collapse:collapse;margin-top:20px}',
-        'th,td{padding:10px 12px;text-align:left;border-bottom:1px solid #E2EDEB}',
-        'th{color:#2E7D72;font-weight:600}',
-        '.t{font-weight:bold;font-size:16px}',
-        '.f{margin-top:40px;color:#7A9490;font-size:12px;text-align:center}',
+        'body{font-family:Helvetica Neue,Helvetica,Arial,sans-serif;margin:0;padding:0;color:#1A2E2B;background:#EFF5F4}',
+        '.card{max-width:400px;margin:20px auto;background:#FFF;border-radius:16px;overflow:hidden}',
+        '.clinic-hdr{background:#2E7D72;padding:16px;display:flex;gap:12px;align-items:flex-start}',
+        '.logo{width:52px;height:52px;border-radius:12px;background:#FFF;display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0}',
+        '.clinic-info{flex:1}',
+        '.clinic-name{font-size:18px;font-weight:800;color:#FFF;letter-spacing:-0.3px;margin:0}',
+        '.tagline{font-size:12px;color:rgba(255,255,255,0.8);font-style:italic;margin:2px 0 0}',
+        '.contact{font-size:11px;color:rgba(255,255,255,0.7);margin:5px 0 0;line-height:16px}',
+        '.label-row{background:#1F5C56;padding:10px 16px;display:flex;justify-content:space-between;align-items:center}',
+        '.label{font-size:11px;font-weight:800;color:#FFF;letter-spacing:1px}',
+        '.inv-no{font-size:12px;font-weight:700;color:rgba(255,255,255,0.85)}',
+        '.dates{padding:12px 16px;display:flex;justify-content:space-between;border-bottom:1px solid #E2EDEB}',
+        '.date-text{font-size:12px;color:#7A9490}',
+        '.patient-box{margin:12px;background:#F0F7F6;border-radius:10px;padding:12px}',
+        '.patient-name{font-size:15px;font-weight:800;color:#1A2E2B;margin:0}',
+        '.patient-id{font-size:12px;color:#7A9490;margin:3px 0 0}',
+        'table{width:100%;border-collapse:collapse;margin:0 12px;width:calc(100% - 24px)}',
+        'th{padding:8px 12px;text-align:left;font-size:11px;font-weight:700;color:#2E7D72;letter-spacing:0.5px;background:#E8F2F0;border-radius:8px}',
+        '.amt-cell{text-align:right}',
+        '.center{text-align:center}',
+        'td{padding:12px;font-size:13px;color:#1A2E2B;border-bottom:1px solid #E2EDEB}',
+        '.amount-box{margin:12px;border:1px solid #E2EDEB;border-radius:10px;padding:14px}',
+        '.amt-row{display:flex;justify-content:space-between;padding:5px 0}',
+        '.amt-label{font-size:13px;color:#7A9490}',
+        '.amt-val{font-size:13px;color:#1A2E2B}',
+        '.amt-bold{font-size:15px;font-weight:800;color:#1A2E2B}',
+        '.dashed{height:1px;border-top:1px dashed #C8DEDA;margin:8px 0}',
+        '.status-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0}',
+        '.badge{background:#FDECEB;border-radius:20px;padding:4px 14px;font-size:12px;font-weight:700;color:#C0392B}',
+        '.note-section{margin:12px 16px;background:#F0F9F7;border-radius:10px;padding:12px}',
+        '.note-label{font-size:11px;font-weight:700;color:#1A7866;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px}',
+        '.note-text{font-size:13px;color:#1A2E2B;line-height:18px}',
+        '.insurance{margin:12px;background:#FEF8EC;border-radius:10px;padding:12px;display:flex;gap:8px}',
+        '.ins-bar{width:3px;border-radius:4px;background:#D4A82A;flex-shrink:0}',
+        '.ins-text{flex:1;font-size:12px;color:#7A5C10;line-height:18px;font-style:italic}',
+        '.physio{font-size:13px;color:#7A9490;margin:4px 16px}',
+        '.physio-name{font-weight:700;color:#1A2E2B}',
+        '.signatures{display:flex;justify-content:space-between;margin:20px 16px 8px;gap:20px}',
+        '.sig-block{flex:1;text-align:center}',
+        '.sig-line{width:100%;height:1px;background:#7A9490;margin-bottom:6px}',
+        '.sig-label{font-size:11px;color:#7A9490}',
+        '.footer{font-size:11px;color:#9AAFAC;text-align:center;padding:8px 12px 16px;line-height:16px}',
         '</style></head><body>',
-        '<h1>Vaidya Multispecialty Clinic</h1>',
-        '<div class="s">' +
-          billing.invoiceNo +
-          ' \u2022 ' +
-          billing.date +
-          '</div>',
-        '<table>',
-        '<tr><th>Patient</th><td>' + patient.name + '</td></tr>',
-        '<tr><th>Reg No.</th><td>' + patient.reg + '</td></tr>',
-        '<tr><th>Service</th><td>' + billing.service + '</td></tr>',
-        '<tr><th>Total</th><td>\u20B9' + amount.total + '</td></tr>',
-        '<tr><th>Discount</th><td>-\u20B9' + amount.discount + '</td></tr>',
-        '<tr class="t"><th>Payable</th><td>\u20B9' +
-          amount.payable +
-          '</td></tr>',
-        '<tr><th>Advance Paid</th><td>\u20B9' +
-          amount.payments[0].amount +
-          ' (' +
-          amount.payments[0].method +
-          ')</td></tr>',
-        '<tr class="t"><th>Balance Due</th><td>\u20B9' +
-          amount.balanceDue +
-          '</td></tr>',
-        '</table>',
-        '<div class="f">Generated by Vaidya Multispecialty Clinic App</div>',
-        '</body></html>',
+        '<div class="card">',
+
+        // Clinic header
+        '<div class="clinic-hdr">',
+        '<div class="logo">🌿</div>',
+        '<div class="clinic-info">',
+        '<p class="clinic-name">VedaMotion Care</p>',
+        '<p class="tagline">Where Every Move Heals</p>',
+        '<p class="contact">+91 8875115254 · vedamotioncare@gmail.com ·<br>www.vedamotioncare.in</p>',
+        '</div></div>',
+
+        // E-Bill label row
+        '<div class="label-row">',
+        '<span class="label">E-BILL / INVOICE</span>',
+        '<span class="inv-no">' + billing.invoiceNo + '</span></div>',
+
+        // Dates
+        '<div class="dates">',
+        '<span class="date-text">Invoice Date: ' + billing.date + '</span>',
+        '<span class="date-text">Due Date: ' + billing.due + '</span></div>',
+
+        // Patient
+        '<div class="patient-box">',
+        '<p class="patient-name">' + patient.name + '</p>',
+        '<p class="patient-id">Patient ID: ' + patient.reg + '</p></div>',
+
+        // Service table
+        '<table><tr>',
+        '<th style="width:50%">DESCRIPTION</th>',
+        '<th class="center" style="width:25%">TYPE</th>',
+        '<th class="amt-cell" style="width:25%">AMOUNT</th>',
+        '</tr><tr>',
+        '<td style="width:50%">' + billing.service + '</td>',
+        '<td class="center" style="width:25%;color:#7A9490">' +
+          billing.type +
+          '</td>',
+        '<td class="amt-cell" style="width:25%">' + fmt(amount.total) + '</td>',
+        '</tr></table>',
+
+        // Amount breakdown
+        '<div class="amount-box">',
+        '<div class="amt-row"><span class="amt-label">Total Amount</span><span class="amt-val">' +
+          fmt(amount.total) +
+          '</span></div>',
+        amount.discount > 0
+          ? '<div class="amt-row"><span class="amt-label">Discount</span><span class="amt-val">– ' +
+            fmt(amount.discount) +
+            '</span></div>'
+          : '',
+        '<div class="dashed"></div>',
+        '<div class="amt-row"><span class="amt-bold">Payable Amount</span><span class="amt-bold">' +
+          fmt(amount.payable) +
+          '</span></div>',
+        paymentsHtml,
+        '<div class="amt-row"><span class="amt-label">Balance Due</span><span class="amt-val">' +
+          fmt(amount.balanceDue) +
+          '</span></div>',
+        '<div class="status-row"><span class="amt-label">Payment Status</span><span class="badge">' +
+          amount.status +
+          '</span></div>',
+        '</div>',
+
+        // Note / Remarks
+        note
+          ? '<div class="note-section"><div class="note-label">Note / Remarks</div><div class="note-text">' +
+            note +
+            '</div></div>'
+          : '',
+        // Insurance clause
+        '<div class="insurance">',
+        '<div class="ins-bar"></div>',
+        '<div class="ins-text">This is a valid e-bill generated by VedaMotion Care. To verify its authenticity, please email vedamotioncare@gmail.com quoting the invoice number. A confirmation will be sent after the bill is verified against our records.</div>',
+        '</div>',
+
+        // Physiotherapist
+        '<p class="physio">Treating Physiotherapist: <span class="physio-name">Dr. Yash Pratihasta, PT | BPT</span></p>',
+
+        // Signatures
+        '<div class="signatures">',
+        '<div class="sig-block"><div class="sig-line"></div><div class="sig-label">Patient Signature</div></div>',
+        '<div class="sig-block"><div class="sig-line"></div><div class="sig-label">Clinic Stamp / Sign</div></div>',
+        '</div>',
+
+        // Footer
+        '<div class="footer">VedaMotion Care · Service & Payment Policy applies · Where Every Move Heals</div>',
+
+        '</div></body></html>',
       ].join('');
 
       const pdf = await RNHTMLtoPDF.convert({
         html: h,
         fileName: `Invoice_${billing.invoiceNo}`,
-        directory: 'Documents',
       });
 
       if (!pdf.filePath) {
@@ -141,6 +243,7 @@ export default function ReviewInvoiceScreen({navigation, route}: any) {
         patient,
         billing,
         amount,
+        note,
       });
     } catch (error: any) {
       if (error?.message !== 'User did not share') {
@@ -158,7 +261,10 @@ export default function ReviewInvoiceScreen({navigation, route}: any) {
 
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} activeOpacity={0.8}>
+        <TouchableOpacity
+          style={styles.backBtn}
+          activeOpacity={0.8}
+          onPress={() => navigation.goBack()}>
           <Text style={styles.backArrow}>←</Text>
         </TouchableOpacity>
         <View>
@@ -182,35 +288,27 @@ export default function ReviewInvoiceScreen({navigation, route}: any) {
         </View>
 
         {/* Patient section */}
-        <SectionCard title="Patient" onEdit={() => handleEdit('Patient')}>
+        <SectionCard title="Patient">
           <Text style={styles.patientName}>{patient.name}</Text>
           <Text style={styles.patientReg}>{patient.reg}</Text>
         </SectionCard>
 
         {/* Billing section */}
-        <SectionCard title="Billing" onEdit={() => handleEdit('Billing')}>
-          <Row label="Invoice No." value={billing.invoiceNo} dimLabel />
-          <Row
-            label="Date / Due"
-            value={`${billing.date} / ${billing.due}`}
-            dimLabel
-          />
-          <Row label="Type" value={billing.type} dimLabel />
-          <Row label="Service" value={billing.service} dimLabel />
-        </SectionCard>
 
         {/* Amount section */}
-        <SectionCard title="Amount" onEdit={() => handleEdit('Amount')}>
+        <SectionCard title="Amount">
           <Row
             label="Total Amount"
             value={`₹${amount.total.toLocaleString('en-IN')}`}
             dimLabel
           />
-          <Row
-            label="Discount"
-            value={`– ₹${amount.discount.toLocaleString('en-IN')}`}
-            dimLabel
-          />
+          {amount.discount > 0 && (
+            <Row
+              label="Discount"
+              value={`– ₹${amount.discount.toLocaleString('en-IN')}`}
+              dimLabel
+            />
+          )}
 
           <DashedDivider />
 
@@ -245,10 +343,25 @@ export default function ReviewInvoiceScreen({navigation, route}: any) {
             </View>
           </View>
         </SectionCard>
+
+        {note ? (
+          <SectionCard title="Remarks">
+            <Text style={styles.remarksText}>{note}</Text>
+          </SectionCard>
+        ) : null}
       </ScrollView>
 
       {/* Sticky bottom */}
       <View style={styles.bottomBar}>
+        {/* Note / Remarks */}
+        <TouchableOpacity
+          style={styles.noteBtn}
+          activeOpacity={0.8}
+          onPress={() => navigation.goBack()}>
+          <Text style={styles.noteBtnText}>
+            {note ? 'Edit note / remarks' : '+ Add note / remarks'}
+          </Text>
+        </TouchableOpacity>
         <TouchableOpacity
           style={styles.generateBtn}
           activeOpacity={0.85}
@@ -396,6 +509,17 @@ const styles = StyleSheet.create({
   },
   statusBadgeText: {fontSize: 12, fontWeight: '700', color: COLORS.teal},
 
+  // Note
+  noteBtn: {
+    marginHorizontal: 0,
+    borderWidth: 1.5,
+    borderColor: COLORS.teal,
+    borderRadius: 12,
+    paddingVertical: 13,
+    alignItems: 'center',
+  },
+  noteBtnText: {fontSize: 14, fontWeight: '700', color: COLORS.teal},
+
   // Bottom bar
   bottomBar: {
     backgroundColor: COLORS.bg,
@@ -427,5 +551,10 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: COLORS.textSecondary,
     textAlign: 'center',
+  },
+  remarksText: {
+    fontSize: 14,
+    color: COLORS.textPrimary,
+    lineHeight: 20,
   },
 });
