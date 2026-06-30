@@ -1,4 +1,4 @@
-import {useState} from 'react';
+import {useState, useEffect} from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  Modal,
 } from 'react-native';
 
 const COLORS = {
@@ -34,11 +35,17 @@ const COLORS = {
   headerSub: 'rgba(255,255,255,0.7)',
   stepActive: '#2E7D72',
   stepInactive: '#B0C8C4',
+  green: '#27AE60',
+  greenLight: '#E8F5EC',
+  amber: '#E67E22',
+  amberLight: '#FEF3E2',
 };
 
 const BILLING_TYPES = ['Per-Visit', 'Weekly', 'Package'];
 
 const SERVICE_TAGS = [
+  'Cupping',
+  'Other Therapy',
   'Initial Consultation',
   'Online Consultation',
   'Daily / Per-Session Visit',
@@ -52,7 +59,59 @@ const SERVICE_TAGS = [
   'Package Payment',
 ];
 
+const SERVICE_PRICES: Record<string, string> = {
+  Cupping: '500',
+  'Other Therapy': '800',
+  'Initial Consultation': '500',
+  'Online Consultation': '400',
+  'Daily / Per-Session Visit': '1300',
+  '10-Visit Package': '5000',
+  '15-Visit Package': '7000',
+  '21-Visit Package': '9000',
+  '30-Visit Package': '12000',
+  'Home Physiotherapy Rehabilitation': '1500',
+  'Home Rehab': '1500',
+  'Consultation Fee': '500',
+  'Package Payment': '0',
+};
+
 const PAYMENT_METHODS = ['Cash', 'UPI', 'Card', 'Bank Transfer', 'Cheque'];
+
+const STATUS_OPTIONS = ['Paid', 'Partial', 'Pending'];
+
+const formatDateString = (d: Date) => {
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const yyyy = d.getFullYear();
+  return `${dd}/${mm}/${yyyy}`;
+};
+
+const generateInvoiceNo = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1;
+  const fyStart = month >= 4 ? year : year - 1;
+  const fy = String(fyStart).slice(-2);
+  const fyEnd = String(fyStart + 1).slice(-2);
+  return `VMC/INV/${fy}-${fyEnd}/0001`;
+};
+
+const parseDate = (str: string): Date | null => {
+  const parts = str.split('/');
+  if (parts.length === 3) {
+    const d = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10) - 1;
+    const y = parseInt(parts[2], 10);
+    if (!isNaN(d) && !isNaN(m) && !isNaN(y)) return new Date(y, m, d);
+  }
+  return null;
+};
+
+const addDays = (date: Date, days: number) => {
+  const d = new Date(date);
+  d.setDate(d.getDate() + days);
+  return d;
+};
 
 function FieldLabel({label, sub}: any) {
   return (
@@ -63,46 +122,165 @@ function FieldLabel({label, sub}: any) {
   );
 }
 
+function DatePickerModal({visible, currentDate, onSelect, onClose}: any) {
+  const parsed = parseDate(currentDate) || new Date();
+  const [day, setDay] = useState(String(parsed.getDate()).padStart(2, '0'));
+  const [month, setMonth] = useState(
+    String(parsed.getMonth() + 1).padStart(2, '0'),
+  );
+  const [year, setYear] = useState(String(parsed.getFullYear()));
+
+  useEffect(() => {
+    const d = parseDate(currentDate) || new Date();
+    setDay(String(d.getDate()).padStart(2, '0'));
+    setMonth(String(d.getMonth() + 1).padStart(2, '0'));
+    setYear(String(d.getFullYear()));
+  }, [currentDate, visible]);
+
+  const handleDone = () => {
+    const dd = day.padStart(2, '0');
+    const mm = month.padStart(2, '0');
+    const yyyy = year;
+    const d = parseInt(dd, 10);
+    const m = parseInt(mm, 10);
+    const y = parseInt(yyyy, 10);
+    if (d >= 1 && d <= 31 && m >= 1 && m <= 12 && y >= 1900 && y <= 2100) {
+      onSelect(`${dd}/${mm}/${yyyy}`);
+      onClose();
+    } else {
+      Alert.alert('Invalid Date', 'Please enter a valid date (DD/MM/YYYY).');
+    }
+  };
+
+  const setToday = () => {
+    const t = new Date();
+    setDay(String(t.getDate()).padStart(2, '0'));
+    setMonth(String(t.getMonth() + 1).padStart(2, '0'));
+    setYear(String(t.getFullYear()));
+  };
+
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}>
+      <TouchableOpacity
+        style={styles.modalOverlay}
+        activeOpacity={1}
+        onPress={onClose}>
+        <TouchableOpacity style={styles.datePickerModal} activeOpacity={1}>
+          <Text style={styles.datePickerTitle}>Select Date</Text>
+          <View style={styles.datePickerRow}>
+            <TextInput
+              style={styles.datePickerInput}
+              value={day}
+              onChangeText={setDay}
+              placeholder="DD"
+              maxLength={2}
+              keyboardType="numeric"
+              placeholderTextColor={COLORS.placeholder}
+            />
+            <Text style={styles.datePickerSep}>/</Text>
+            <TextInput
+              style={styles.datePickerInput}
+              value={month}
+              onChangeText={setMonth}
+              placeholder="MM"
+              maxLength={2}
+              keyboardType="numeric"
+              placeholderTextColor={COLORS.placeholder}
+            />
+            <Text style={styles.datePickerSep}>/</Text>
+            <TextInput
+              style={[styles.datePickerInput, {flex: 1.5}]}
+              value={year}
+              onChangeText={setYear}
+              placeholder="YYYY"
+              maxLength={4}
+              keyboardType="numeric"
+              placeholderTextColor={COLORS.placeholder}
+            />
+          </View>
+          <View style={styles.datePickerActions}>
+            <TouchableOpacity
+              style={styles.datePickerTodayBtn}
+              onPress={setToday}
+              activeOpacity={0.8}>
+              <Text style={styles.datePickerTodayText}>Today</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.datePickerDoneBtn}
+              onPress={handleDone}
+              activeOpacity={0.8}>
+              <Text style={styles.datePickerDoneText}>Done</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </TouchableOpacity>
+    </Modal>
+  );
+}
+
 export default function NewInvoiceStep2({navigation}: any) {
+  const today = new Date();
+  const [invoiceNo, setInvoiceNo] = useState(generateInvoiceNo());
+  const [invoiceDate, setInvoiceDate] = useState(formatDateString(today));
+  const [dueDate, setDueDate] = useState(formatDateString(addDays(today, 7)));
+  const [therapist, setTherapist] = useState('Dr. Yash Pratihasta, PT');
   const [billingType, setBillingType] = useState('Per-Visit');
-  const [selectedService, setSelectedService] = useState(
-    'Daily / Per-Session Visit',
-  );
+  const [items, setItems] = useState<{name: string; amount: string}[]>([
+    {name: 'Cupping', amount: '500'},
+    {name: 'Other Therapy', amount: '800'},
+  ]);
   const [customTag, setCustomTag] = useState('');
-  const [tags, setTags] = useState(SERVICE_TAGS);
-  const [description, setDescription] = useState(
-    'Daily / Per-Session Visit — Knee Rehab',
-  );
-  const [totalAmount, setTotalAmount] = useState('1300');
-  const [discount, setDiscount] = useState('100');
-  const [isAdvance, setIsAdvance] = useState(true);
-  const [payments, setPayments] = useState([{amount: '500', method: 'UPI'}]);
+  const [discount, setDiscount] = useState('0');
+  const [payments, setPayments] = useState([{amount: '0', method: 'Cash'}]);
   const [showMethodPicker, setShowMethodPicker] = useState<number | null>(null);
+  const [paymentStatus, setPaymentStatus] = useState<string | null>(null);
+  const [showStatusPicker, setShowStatusPicker] = useState(false);
   const [note, setNote] = useState('');
   const [showNoteInput, setShowNoteInput] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState<
+    'invoice' | 'due' | null
+  >(null);
 
-  const payable = Math.max(
+  const totalAmount = items.reduce(
+    (s, it) => s + (parseInt(it.amount) || 0),
     0,
-    (parseInt(totalAmount) || 0) - (parseInt(discount) || 0),
   );
+  const payable = Math.max(0, totalAmount - (parseInt(discount) || 0));
   const totalPaid = payments.reduce((s, p) => s + (parseInt(p.amount) || 0), 0);
+  const extraPaid = Math.max(0, totalPaid - payable);
   const balanceDue = Math.max(0, payable - totalPaid);
 
   const getStatus = () => {
-    if (isAdvance && totalPaid > 0 && balanceDue > 0) return 'Advance Paid';
-    if (balanceDue === 0 && totalPaid > 0) return 'Paid';
+    if (totalPaid >= payable && payable > 0) return 'Paid';
     if (totalPaid > 0) return 'Partial';
-    return 'Unpaid';
+    return 'Pending';
   };
 
-  const addCustomTag = () => {
+  const description = items.map(it => it.name).join(' + ') || '—';
+
+  const addItem = (name: string) => {
+    const price = SERVICE_PRICES[name] || '0';
+    setItems([...items, {name, amount: price}]);
+  };
+
+  const removeItem = (idx: number) => {
+    setItems(items.filter((_, i) => i !== idx));
+  };
+
+  const updateItem = (idx: number, key: string, val: string) => {
+    setItems(items.map((it, i) => (i === idx ? {...it, [key]: val} : it)));
+  };
+
+  const addCustomItem = () => {
     const t = customTag.trim();
-    if (t && !tags.includes(t)) {
-      setTags([...tags, t]);
-      setSelectedService(t);
-      setDescription(t);
+    if (t) {
+      setItems([...items, {name: t, amount: '0'}]);
+      setCustomTag('');
     }
-    setCustomTag('');
   };
 
   const addPayment = () => {
@@ -162,22 +340,40 @@ export default function NewInvoiceStep2({navigation}: any) {
             </TouchableOpacity>
           </View>
 
+          {/* Therapist */}
+          <View style={styles.fieldWrapper}>
+            <FieldLabel label="TREATING PHYSIOTHERAPIST" />
+            <TextInput
+              style={styles.input}
+              value={therapist}
+              onChangeText={setTherapist}
+              placeholderTextColor={COLORS.placeholder}
+            />
+          </View>
+
           {/* Invoice Number + Date */}
           <View style={styles.twoCol}>
             <View style={styles.colHalf}>
               <FieldLabel label="INVOICE NUMBER" />
               <TextInput
-                style={[styles.input, {color: COLORS.textSecondary}]}
-                value="VMC-INV-260621-03"
-                editable={false}
+                style={styles.input}
+                value={invoiceNo}
+                onChangeText={setInvoiceNo}
+                placeholderTextColor={COLORS.placeholder}
               />
+              {/* <Text style={{color: COLORS.placeholder, fontSize: 9}}>
+                VMC/INV/26-27/0001
+              </Text> */}
             </View>
             <View style={styles.colHalf}>
               <FieldLabel label="INVOICE DATE" />
-              <View style={styles.dateInput}>
-                <Text style={styles.dateText}>21/06/2026</Text>
+              <TouchableOpacity
+                style={styles.dateInput}
+                onPress={() => setShowDatePicker('invoice')}
+                activeOpacity={0.8}>
+                <Text style={styles.dateText}>{invoiceDate}</Text>
                 <Text style={styles.calIcon}>📅</Text>
-              </View>
+              </TouchableOpacity>
             </View>
           </View>
 
@@ -209,94 +405,111 @@ export default function NewInvoiceStep2({navigation}: any) {
           {/* Due Date */}
           <View style={styles.fieldWrapper}>
             <FieldLabel label="DUE DATE" sub="(auto-suggested)" />
-            <View style={styles.dateInput}>
-              <Text style={styles.dateText}>21/06/2026</Text>
+            <TouchableOpacity
+              style={styles.dateInput}
+              onPress={() => setShowDatePicker('due')}
+              activeOpacity={0.8}>
+              <Text style={styles.dateText}>{dueDate}</Text>
               <Text style={styles.calIcon}>📅</Text>
-            </View>
+            </TouchableOpacity>
           </View>
 
-          {/* Service / Description */}
+          {/* Service Items */}
           <View style={styles.fieldWrapper}>
-            <FieldLabel label="SERVICE / DESCRIPTION" />
+            <FieldLabel label="SERVICE ITEMS" />
+            {/* Tag cloud as presets */}
             <View style={styles.tagCloud}>
-              {tags.map(tag => (
-                <TouchableOpacity
-                  key={tag}
-                  style={[
-                    styles.tag,
-                    selectedService === tag && styles.tagActive,
-                  ]}
-                  onPress={() => {
-                    setSelectedService(tag);
-                    setDescription(tag);
-                  }}
-                  activeOpacity={0.75}>
-                  <Text
-                    style={[
-                      styles.tagText,
-                      selectedService === tag && styles.tagTextActive,
-                    ]}>
-                    {tag}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+              {SERVICE_TAGS.map(tag => {
+                const alreadyAdded = items.some(it => it.name === tag);
+                return (
+                  <TouchableOpacity
+                    key={tag}
+                    style={[styles.tag, alreadyAdded && styles.tagAdded]}
+                    onPress={() => addItem(tag)}
+                    activeOpacity={0.75}>
+                    <Text
+                      style={[
+                        styles.tagText,
+                        alreadyAdded && styles.tagTextAdded,
+                      ]}>
+                      {tag}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
 
-            {/* Custom tag input */}
+            {/* Custom add */}
             <View style={styles.addTagRow}>
               <TextInput
                 style={styles.addTagInput}
-                placeholder="Type a new one to add..."
+                placeholder="Type custom item name..."
                 placeholderTextColor={COLORS.placeholder}
                 value={customTag}
                 onChangeText={setCustomTag}
                 returnKeyType="done"
-                onSubmitEditing={addCustomTag}
+                onSubmitEditing={addCustomItem}
               />
               <TouchableOpacity
                 style={styles.addTagBtn}
-                onPress={addCustomTag}
+                onPress={addCustomItem}
                 activeOpacity={0.8}>
                 <Text style={styles.addTagBtnText}>+ Add</Text>
               </TouchableOpacity>
             </View>
-          </View>
 
-          {/* Selected Description editable */}
-          <View style={styles.fieldWrapper}>
-            <FieldLabel label="SELECTED DESCRIPTION (EDITABLE)" />
-            <TextInput
-              style={styles.input}
-              value={description}
-              onChangeText={setDescription}
-              placeholderTextColor={COLORS.placeholder}
-            />
+            {/* Item list */}
+            {items.map((item, idx) => (
+              <View key={idx} style={styles.itemRow}>
+                <TextInput
+                  style={[styles.input, styles.itemNameInput]}
+                  value={item.name}
+                  onChangeText={v => updateItem(idx, 'name', v)}
+                  placeholderTextColor={COLORS.placeholder}
+                />
+                <View style={styles.itemAmountWrapper}>
+                  <TextInput
+                    style={[styles.input, styles.itemAmountInput]}
+                    value={item.amount}
+                    onChangeText={v => updateItem(idx, 'amount', v)}
+                    keyboardType="numeric"
+                    placeholderTextColor={COLORS.placeholder}
+                  />
+                </View>
+                <TouchableOpacity
+                  style={styles.removeBtn}
+                  onPress={() => removeItem(idx)}
+                  activeOpacity={0.8}>
+                  <Text style={styles.removeBtnText}>✕</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
           </View>
 
           {/* AMOUNT section */}
           <View style={styles.amountCard}>
             <Text style={styles.amountTitle}>AMOUNT</Text>
 
-            {/* Total + Discount */}
-            <View style={styles.twoCol}>
-              <View style={styles.colHalf}>
-                <FieldLabel label="TOTAL AMOUNT (₹)" />
-                <TextInput
-                  style={styles.input}
-                  value={totalAmount}
-                  onChangeText={setTotalAmount}
-                  keyboardType="numeric"
-                />
+            {/* Total (auto) */}
+            <View style={styles.fieldWrapper}>
+              <FieldLabel label="TOTAL AMOUNT (₹)" />
+              <View style={[styles.input, styles.disabledInput]}>
+                <Text style={styles.disabledText}>
+                  {totalAmount.toLocaleString('en-IN')}
+                </Text>
               </View>
-              <View style={styles.colHalf}>
-                <FieldLabel label="DISCOUNT (₹)" />
-                <TextInput
-                  style={styles.input}
-                  value={discount}
-                  onChangeText={setDiscount}
-                  keyboardType="numeric"
-                />
-              </View>
+            </View>
+
+            {/* Discount */}
+            <View style={styles.fieldWrapper}>
+              <FieldLabel label="DISCOUNT (₹)" />
+              <TextInput
+                style={styles.input}
+                value={discount}
+                onChangeText={setDiscount}
+                keyboardType="numeric"
+                placeholderTextColor={COLORS.placeholder}
+              />
             </View>
 
             {/* Payable */}
@@ -364,21 +577,7 @@ export default function NewInvoiceStep2({navigation}: any) {
               <Text style={styles.addPaymentText}>+ Add Payment</Text>
             </TouchableOpacity>
 
-            {/* Advance checkbox */}
-            <TouchableOpacity
-              style={styles.checkRow}
-              onPress={() => setIsAdvance(!isAdvance)}
-              activeOpacity={0.8}>
-              <View
-                style={[styles.checkbox, isAdvance && styles.checkboxChecked]}>
-                {isAdvance && <Text style={styles.checkmark}>✓</Text>}
-              </View>
-              <Text style={styles.checkLabel}>
-                This is an advance — service not yet delivered
-              </Text>
-            </TouchableOpacity>
-
-            {/* Total Paid + Balance Due */}
+            {/* Total Paid + Extra Paid + Balance Due */}
             <View style={styles.twoCol}>
               <View style={styles.colHalf}>
                 <FieldLabel label="TOTAL PAID (₹)" />
@@ -389,45 +588,82 @@ export default function NewInvoiceStep2({navigation}: any) {
                 </View>
               </View>
               <View style={styles.colHalf}>
-                <FieldLabel label="BALANCE DUE (₹)" />
+                <FieldLabel
+                  label={extraPaid > 0 ? 'EXTRA PAID (₹)' : 'ADVANCE PAID (₹)'}
+                />
                 <View style={[styles.input, styles.disabledInput]}>
                   <Text style={styles.disabledText}>
-                    {balanceDue.toLocaleString('en-IN')}
+                    {extraPaid > 0
+                      ? extraPaid.toLocaleString('en-IN')
+                      : totalPaid.toLocaleString('en-IN')}
                   </Text>
                 </View>
               </View>
             </View>
 
-            {/* Payment Status */}
-            <View style={styles.statusRow}>
-              <Text style={styles.fieldLabel}>PAYMENT STATUS</Text>
-              <View style={styles.statusBadge}>
-                <Text style={styles.statusBadgeText}>{getStatus()}</Text>
+            <View style={styles.fieldWrapper}>
+              <FieldLabel label="BALANCE DUE (₹)" />
+              <View style={[styles.input, styles.disabledInput]}>
+                <Text style={styles.disabledText}>
+                  {balanceDue.toLocaleString('en-IN')}
+                </Text>
               </View>
             </View>
 
+            {/* Payment Status */}
+            <View style={styles.fieldWrapper}>
+              <FieldLabel label="PAYMENT STATUS" />
+              <TouchableOpacity
+                style={styles.methodPicker}
+                onPress={() => setShowStatusPicker(!showStatusPicker)}
+                activeOpacity={0.8}>
+                <Text style={styles.methodText}>
+                  {paymentStatus || getStatus()}
+                </Text>
+                <Text style={styles.chevron}>⌄</Text>
+              </TouchableOpacity>
+              {showStatusPicker && (
+                <View style={styles.dropdown}>
+                  {STATUS_OPTIONS.map(s => (
+                    <TouchableOpacity
+                      key={s}
+                      style={styles.dropdownItem}
+                      onPress={() => {
+                        setPaymentStatus(s);
+                        setShowStatusPicker(false);
+                      }}>
+                      <Text style={styles.dropdownItemText}>{s}</Text>
+                    </TouchableOpacity>
+                  ))}
+                  {paymentStatus && (
+                    <TouchableOpacity
+                      style={styles.dropdownItem}
+                      onPress={() => {
+                        setPaymentStatus(null);
+                        setShowStatusPicker(false);
+                      }}>
+                      <Text
+                        style={[
+                          styles.dropdownItemText,
+                          {color: COLORS.textSecondary},
+                        ]}>
+                        Auto
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              )}
+            </View>
+
             {/* Note / Remarks */}
-            <TouchableOpacity
-              style={styles.noteBtn}
-              activeOpacity={0.8}
-              onPress={() => setShowNoteInput(!showNoteInput)}>
-              <Text style={styles.noteBtnText}>
-                {note ? 'Edit note / remarks' : '+ Add note / remarks'}
-              </Text>
-            </TouchableOpacity>
-            {showNoteInput && (
-              <TextInput
-                style={styles.noteInput}
-                placeholder="Enter note or remarks..."
-                placeholderTextColor={COLORS.placeholder}
-                value={note}
-                onChangeText={setNote}
-                multiline
-              />
-            )}
-            {note && !showNoteInput && (
-              <Text style={styles.noteDisplay}>{note}</Text>
-            )}
+            <TextInput
+              style={styles.noteInput}
+              placeholder="Enter note or remarks..."
+              placeholderTextColor={COLORS.placeholder}
+              value={note}
+              onChangeText={setNote}
+              multiline
+            />
           </View>
 
           {/* Action Buttons */}
@@ -444,27 +680,31 @@ export default function NewInvoiceStep2({navigation}: any) {
               onPress={() =>
                 navigation.navigate('PreviewInvoice', {
                   note,
+                  therapist,
                   patient: {name: 'New Patient', reg: 'VMCPTREG-0157'},
                   billing: {
-                    invoiceNo: 'VMC-INV-260621-03',
-                    date: '21/06/2026',
-                    due: '21/06/2026',
+                    invoiceNo,
+                    date: invoiceDate,
+                    due: dueDate,
                     type: billingType,
                     service: description,
+                    items: items.map(it => ({
+                      name: it.name,
+                      amount: parseInt(it.amount) || 0,
+                    })),
                   },
                   amount: {
-                    total: parseInt(totalAmount) || 0,
+                    total: totalAmount,
                     discount: parseInt(discount) || 0,
                     payable,
                     payments: payments.map(p => ({
                       amount: parseInt(p.amount) || 0,
                       method: p.method,
-                      mode: isAdvance ? 'advance' : 'regular',
                     })),
                     totalPaid,
+                    extraPaid,
                     balanceDue,
-                    status: getStatus(),
-                    isAdvance,
+                    status: paymentStatus || getStatus(),
                   },
                 })
               }>
@@ -478,6 +718,22 @@ export default function NewInvoiceStep2({navigation}: any) {
           </Text>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Date Picker Modal */}
+      <DatePickerModal
+        visible={showDatePicker !== null}
+        currentDate={showDatePicker === 'invoice' ? invoiceDate : dueDate}
+        onSelect={(d: string) => {
+          if (showDatePicker === 'invoice') {
+            setInvoiceDate(d);
+            const parsed = parseDate(d);
+            if (parsed) setDueDate(formatDateString(addDays(parsed, 7)));
+          } else {
+            setDueDate(d);
+          }
+        }}
+        onClose={() => setShowDatePicker(null)}
+      />
     </SafeAreaView>
   );
 }
@@ -637,9 +893,9 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     backgroundColor: COLORS.card,
   },
-  tagActive: {backgroundColor: COLORS.teal, borderColor: COLORS.teal},
+  tagAdded: {backgroundColor: COLORS.tealLight, borderColor: COLORS.teal},
   tagText: {fontSize: 13, fontWeight: '600', color: COLORS.textPrimary},
-  tagTextActive: {color: '#FFF'},
+  tagTextAdded: {color: COLORS.teal},
 
   // Add tag row
   addTagRow: {flexDirection: 'row', gap: 8, marginTop: 4},
@@ -663,6 +919,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   addTagBtnText: {fontSize: 13, fontWeight: '700', color: COLORS.teal},
+
+  // Item row
+  itemRow: {flexDirection: 'row', gap: 8, alignItems: 'center'},
+  itemNameInput: {flex: 2},
+  itemAmountWrapper: {flex: 1},
+  itemAmountInput: {textAlign: 'right'},
+
+  // Remove btn
+  removeBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: COLORS.redLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  removeBtnText: {fontSize: 14, color: COLORS.red, fontWeight: '700'},
 
   // Amount card
   amountCard: {
@@ -701,15 +974,6 @@ const styles = StyleSheet.create({
   },
   methodText: {fontSize: 14, color: COLORS.textPrimary},
   chevron: {fontSize: 14, color: COLORS.textSecondary},
-  removeBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: COLORS.redLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  removeBtnText: {fontSize: 14, color: COLORS.red, fontWeight: '700'},
 
   // Dropdown
   dropdown: {
@@ -731,28 +995,6 @@ const styles = StyleSheet.create({
   // Add payment
   addPaymentBtn: {alignSelf: 'flex-start'},
   addPaymentText: {fontSize: 13, fontWeight: '700', color: COLORS.teal},
-
-  // Checkbox
-  checkRow: {flexDirection: 'row', alignItems: 'flex-start', gap: 10},
-  checkbox: {
-    width: 20,
-    height: 20,
-    borderRadius: 4,
-    borderWidth: 2,
-    borderColor: COLORS.teal,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 1,
-  },
-  checkboxChecked: {backgroundColor: COLORS.teal},
-  checkmark: {fontSize: 11, color: '#FFF', fontWeight: '800'},
-  checkLabel: {
-    flex: 1,
-    fontSize: 13,
-    fontWeight: '600',
-    color: COLORS.textPrimary,
-    lineHeight: 20,
-  },
 
   // Status row
   statusRow: {
@@ -781,7 +1023,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 0,
     marginTop: 8,
     borderWidth: 1.5,
-    borderColor: COLORS.teal,
+    borderColor: COLORS.border,
     borderRadius: 12,
     padding: 12,
     fontSize: 14,
@@ -833,5 +1075,76 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 18,
     paddingHorizontal: 8,
+  },
+
+  // Date picker modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  datePickerModal: {
+    backgroundColor: COLORS.card,
+    borderRadius: 16,
+    padding: 20,
+    width: '80%',
+    gap: 16,
+  },
+  datePickerTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: COLORS.textPrimary,
+    textAlign: 'center',
+  },
+  datePickerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  datePickerInput: {
+    flex: 1,
+    backgroundColor: COLORS.inputBg,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 16,
+    color: COLORS.textPrimary,
+    textAlign: 'center',
+  },
+  datePickerSep: {
+    fontSize: 20,
+    color: COLORS.textSecondary,
+    fontWeight: '700',
+  },
+  datePickerActions: {
+    flexDirection: 'row',
+    gap: 10,
+    justifyContent: 'flex-end',
+  },
+  datePickerTodayBtn: {
+    borderWidth: 1.5,
+    borderColor: COLORS.teal,
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  datePickerTodayText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: COLORS.teal,
+  },
+  datePickerDoneBtn: {
+    backgroundColor: COLORS.teal,
+    borderRadius: 10,
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+  },
+  datePickerDoneText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFF',
   },
 });

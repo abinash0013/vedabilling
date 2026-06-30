@@ -62,7 +62,7 @@ export default function BottomTabs() {
             ),
           }}
         />
-        <Tab.Screen
+        {/* <Tab.Screen
           name="Backup"
           component={BackupScreen}
           options={{
@@ -71,7 +71,7 @@ export default function BottomTabs() {
             ),
             tabBarLabel: 'Backup',
           }}
-        />
+        /> */}
       </Tab.Navigator>
     </View>
   );

@@ -8,6 +8,10 @@ import {
   StyleSheet,
   SafeAreaView,
   StatusBar,
+  Modal,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 
@@ -93,24 +97,70 @@ function PatientRow({item, isLast, onPress}: any) {
 export default function PatientsScreen() {
   const navigation = useNavigation<any>();
   const [query, setQuery] = useState('');
+  const [patients, setPatients] = useState(ALL_PATIENTS);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [newName, setNewName] = useState('');
 
-  const filtered = ALL_PATIENTS.filter(
+  const filtered = patients.filter(
     p =>
       p.name.toLowerCase().includes(query.toLowerCase()) ||
       p.reg.toLowerCase().includes(query.toLowerCase()),
   );
 
+  const generateReg = () => {
+    const lastNum = patients.reduce((max, p) => {
+      const n = parseInt(p.reg.replace('VMCPTREG-', ''), 10);
+      return n > max ? n : max;
+    }, 0);
+    return 'VMCPTREG-' + String(lastNum + 1).padStart(4, '0');
+  };
+
+  const getInitials = (name: string) =>
+    name
+      .split(' ')
+      .map((w: string) => w[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+
+  const handleAdd = () => {
+    const trimmed = newName.trim();
+    if (!trimmed) {
+      Alert.alert('Error', 'Please enter a patient name.');
+      return;
+    }
+    const now = new Date();
+    const day = String(now.getDate()).padStart(2, '0');
+    const month = now.toLocaleString('en-US', {month: 'short'});
+    const date = `${day} ${month}`;
+    setPatients(prev => [
+      ...prev,
+      {
+        id: getInitials(trimmed),
+        name: trimmed,
+        reg: generateReg(),
+        invoices: 0,
+        date,
+      },
+    ]);
+    setNewName('');
+    setModalVisible(false);
+  };
+
   return (
     <SafeAreaView style={styles.safe}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.teal} />
+      {/* <StatusBar barStyle="light-content" backgroundColor={COLORS.teal} /> */}
 
       {/* Header */}
       <View style={styles.header}>
         <View>
           <Text style={styles.headerTitle}>Patients</Text>
-          <Text style={styles.headerSub}>{ALL_PATIENTS.length} records</Text>
+          <Text style={styles.headerSub}>{patients.length} records</Text>
         </View>
-        <TouchableOpacity style={styles.plusBtn} activeOpacity={0.8}>
+        <TouchableOpacity
+          style={styles.plusBtn}
+          activeOpacity={0.8}
+          onPress={() => setModalVisible(true)}>
           <Text style={styles.plusIcon}>+</Text>
         </TouchableOpacity>
       </View>
@@ -149,6 +199,42 @@ export default function PatientsScreen() {
           />
         </View>
       </View>
+
+      {/* Add Patient Modal */}
+      <Modal
+        visible={modalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setModalVisible(false)}>
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Add New Patient</Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Enter patient name"
+              placeholderTextColor={COLORS.textSecondary}
+              value={newName}
+              onChangeText={setNewName}
+              autoFocus
+            />
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.cancelBtn}
+                onPress={() => {
+                  setNewName('');
+                  setModalVisible(false);
+                }}>
+                <Text style={styles.cancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.addBtn} onPress={handleAdd}>
+                <Text style={styles.addBtnText}>Add Patient</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -290,5 +376,63 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     paddingVertical: 24,
     fontSize: 14,
+  },
+
+  // Modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: COLORS.card,
+    borderRadius: 16,
+    padding: 24,
+    width: '85%',
+    gap: 16,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: COLORS.textPrimary,
+  },
+  modalInput: {
+    backgroundColor: COLORS.inputBg,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 15,
+    color: COLORS.textPrimary,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  cancelBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: COLORS.bg,
+    alignItems: 'center',
+  },
+  cancelBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.textSecondary,
+  },
+  addBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: COLORS.teal,
+    alignItems: 'center',
+  },
+  addBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 });

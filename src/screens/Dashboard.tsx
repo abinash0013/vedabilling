@@ -14,7 +14,8 @@ import {
 } from 'react-native';
 import React from 'react';
 import {useNavigation} from '@react-navigation/native';
-import {Plus, X} from 'lucide-react-native';
+import {Plus, X, Download} from 'lucide-react-native';
+import RNFS from 'react-native-fs';
 
 const COLORS = {
   teal: '#2E7D72',
@@ -42,12 +43,6 @@ const COLORS = {
   amberLight: '#FEF3E2',
   redLight: '#FDECEB',
 };
-
-const stats = [
-  {label: "TODAY'S BILLS", value: '2', color: COLORS.teal, isNumber: true},
-  {label: 'PENDING DUES', value: '₹4,300', color: COLORS.red},
-  {label: 'THIS WEEK', value: '₹18,600', color: COLORS.teal},
-];
 
 const invoices = [
   {
@@ -93,6 +88,37 @@ const invoices = [
   },
 ];
 
+const parseAmt = (s: string) => Number(s.replace(/[^0-9]/g, ''));
+
+const paid = invoices.filter(i => i.status === 'Paid');
+const partial = invoices.filter(i => i.status === 'Partial');
+const unpaid = invoices.filter(i => i.status === 'Unpaid');
+
+const paidTotal = paid.reduce((sum, i) => sum + parseAmt(i.amount), 0);
+const partialTotal = partial.reduce((sum, i) => sum + parseAmt(i.amount), 0);
+const unpaidTotal = unpaid.reduce((sum, i) => sum + parseAmt(i.amount), 0);
+
+const stats = [
+  {
+    label: 'PAID',
+    value: `${paid.length} · ₹${paidTotal.toLocaleString('en-IN')}`,
+    bgColor: COLORS.greenLight,
+    textColor: COLORS.green,
+  },
+  {
+    label: 'PARTIAL',
+    value: `${partial.length} · ₹${partialTotal.toLocaleString('en-IN')}`,
+    bgColor: COLORS.amberLight,
+    textColor: COLORS.amber,
+  },
+  {
+    label: 'UNPAID',
+    value: `${unpaid.length} · ₹${unpaidTotal.toLocaleString('en-IN')}`,
+    bgColor: COLORS.redLight,
+    textColor: COLORS.red,
+  },
+];
+
 const PATIENTS = [
   {id: 'PS', name: 'Priya Sharma', reg: 'VMCPTREG-0124', lastVisit: '18 Jun'},
   {id: 'RV', name: 'Rohit Verma', reg: 'VMCPTREG-0098', lastVisit: '20 Jun'},
@@ -121,11 +147,11 @@ const statusStyles = {
   },
 };
 
-function StatCard({label, value, color}: any) {
+function StatCard({label, value, bgColor, textColor}: any) {
   return (
-    <View style={styles.statCard}>
-      <Text style={[styles.statValue, {color}]}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
+    <View style={[styles.statCard, {backgroundColor: bgColor}]}>
+      <Text style={[styles.statValue, {color: textColor}]}>{value}</Text>
+      <Text style={[styles.statLabel, {color: textColor + 'D9'}]}>{label}</Text>
     </View>
   );
 }
@@ -198,11 +224,8 @@ export default function Dashboard() {
   );
 
   const handleSelectPatient = (patient: any) => {
-    Alert.alert(
-      'Patient Selected',
-      `${patient.name} auto-filled. Proceeding to Step 2.`,
-      [{text: 'OK'}],
-    );
+    navigation.navigate('NewInvoice', {patient});
+    setInvoiceModal(false);
   };
 
   const navigation = useNavigation<any>();
@@ -215,14 +238,41 @@ export default function Dashboard() {
     navigation.navigate('NewInvoice');
   };
 
+  const handleExport = async () => {
+    try {
+      const csvHeader = 'Patient,Invoice,Type,Amount,Status\n';
+      const csvRows = invoices
+        .map(
+          i =>
+            `${i.name},${i.invoice},${i.type},${i.amount.replace('₹', '')},${
+              i.status
+            }`,
+        )
+        .join('\n');
+      const csv = csvHeader + csvRows;
+      const destDir =
+        Platform.OS === 'android'
+          ? RNFS.DownloadDirectoryPath
+          : RNFS.DocumentDirectoryPath;
+      const path = `${destDir}/RecentInvoices.csv`;
+      await RNFS.writeFile(path, csv, 'utf8');
+      Alert.alert(
+        'Exported',
+        `Saved to Downloads folder as RecentInvoices.csv`,
+      );
+    } catch (error: any) {
+      Alert.alert('Error', error?.message || 'Failed to export.');
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safe}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.bg} />
+      {/* <StatusBar barStyle="dark-content" backgroundColor={COLORS.bg} /> */}
       {/* Header */}
       <View style={styles.header}>
         <View>
           <Text style={styles.headerTitle}>Good evening, Dr. Yash</Text>
-          <Text style={styles.headerSub}>Sunday, 21 June 2026</Text>
+          <Text style={styles.headerSub}>{new Date().toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</Text>
         </View>
       </View>
       <ScrollView
@@ -232,12 +282,18 @@ export default function Dashboard() {
         {/* Stats Row */}
         <View style={styles.statsRow}>
           {stats.map(s => (
-            <StatCard key={s.label} {...s} />
+            <StatCard key={s.label} bgColor={s.bgColor} textColor={s.textColor} label={s.label} value={s.value} />
           ))}
         </View>
 
         {/* Recent Invoices */}
-        <Text style={styles.sectionTitle}>RECENT INVOICES</Text>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>RECENT INVOICES</Text>
+          <TouchableOpacity style={styles.exportBtn} onPress={handleExport}>
+            <Download size={14} color={COLORS.teal} strokeWidth={2.5} />
+            <Text style={styles.exportBtnText}>Export</Text>
+          </TouchableOpacity>
+        </View>
 
         <View style={styles.invoiceCard}>
           {invoices.map((item, idx) => (
@@ -429,26 +485,48 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   statValue: {
-    fontSize: 22,
+    fontSize: 16,
     fontWeight: '700',
-    letterSpacing: -0.5,
+    letterSpacing: -0.3,
     marginBottom: 4,
+    textAlign: 'center',
+    color: '#FFFFFF',
   },
   statLabel: {
     fontSize: 10,
     fontWeight: '600',
-    color: COLORS.textSecondary,
+    color: 'rgba(255,255,255,0.85)',
     letterSpacing: 0.4,
     textAlign: 'center',
   },
 
   // Section title
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
   sectionTitle: {
     fontSize: 13,
     fontWeight: '700',
     color: COLORS.teal,
     letterSpacing: 1.2,
-    marginBottom: 12,
+  },
+  exportBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: COLORS.teal,
+  },
+  exportBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: COLORS.teal,
   },
 
   // Invoice card container

@@ -28,6 +28,7 @@ const COLORS = {
   amberBorder: '#D4A82A',
   headerText: '#FFFFFF',
   headerSub: 'rgba(255,255,255,0.75)',
+  tealBg: '#EBF4F2',
 };
 
 function SectionCard({title, onEdit, children}: any) {
@@ -59,19 +60,27 @@ function DashedDivider() {
 }
 
 export default function ReviewInvoiceScreen({navigation, route}: any) {
-  const {patient, billing, amount, note} = route.params || {
+  const {patient, billing, amount, note, therapist} = route.params || {
     note: '',
+    therapist: '',
     patient: {name: '', reg: ''},
-    billing: {invoiceNo: '', date: '', due: '', type: '', service: ''},
+    billing: {
+      invoiceNo: '',
+      date: '',
+      due: '',
+      type: '',
+      service: '',
+      items: [],
+    },
     amount: {
       total: 0,
       discount: 0,
       payable: 0,
       payments: [],
       totalPaid: 0,
+      extraPaid: 0,
       balanceDue: 0,
-      status: 'Unpaid',
-      isAdvance: false,
+      status: 'Pending',
     },
   };
   const handleEdit = () => {
@@ -86,8 +95,6 @@ export default function ReviewInvoiceScreen({navigation, route}: any) {
           (p: any) =>
             `<tr><td style="padding:8px 12px;color:#7A9490;font-size:13px">Paid — ${
               p.method
-            }${
-              p.mode === 'advance' ? ' (advance)' : ''
             }</td><td style="padding:8px 12px;text-align:right;font-size:13px;color:#1A2E2B">${fmt(
               p.amount,
             )}</td></tr>`,
@@ -131,12 +138,6 @@ export default function ReviewInvoiceScreen({navigation, route}: any) {
         '.insurance{margin:12px;background:#FEF8EC;border-radius:10px;padding:12px;display:flex;gap:8px}',
         '.ins-bar{width:3px;border-radius:4px;background:#D4A82A;flex-shrink:0}',
         '.ins-text{flex:1;font-size:12px;color:#7A5C10;line-height:18px;font-style:italic}',
-        '.physio{font-size:13px;color:#7A9490;margin:4px 16px}',
-        '.physio-name{font-weight:700;color:#1A2E2B}',
-        '.signatures{display:flex;justify-content:space-between;margin:20px 16px 8px;gap:20px}',
-        '.sig-block{flex:1;text-align:center}',
-        '.sig-line{width:100%;height:1px;background:#7A9490;margin-bottom:6px}',
-        '.sig-label{font-size:11px;color:#7A9490}',
         '.footer{font-size:11px;color:#9AAFAC;text-align:center;padding:8px 12px 16px;line-height:16px}',
         '</style></head><body>',
         '<div class="card">',
@@ -163,20 +164,38 @@ export default function ReviewInvoiceScreen({navigation, route}: any) {
         // Patient
         '<div class="patient-box">',
         '<p class="patient-name">' + patient.name + '</p>',
-        '<p class="patient-id">Patient ID: ' + patient.reg + '</p></div>',
+        '<p class="patient-id">Patient ID: ' + patient.reg + '</p>',
+        '<p class="patient-id" style="margin-top:3px">' +
+          (therapist || 'Dr. Yash Pratihasta, PT') +
+          '</p></div>',
 
-        // Service table
+        // Service items table
         '<table><tr>',
         '<th style="width:50%">DESCRIPTION</th>',
         '<th class="center" style="width:25%">TYPE</th>',
         '<th class="amt-cell" style="width:25%">AMOUNT</th>',
-        '</tr><tr>',
-        '<td style="width:50%">' + billing.service + '</td>',
-        '<td class="center" style="width:25%;color:#7A9490">' +
-          billing.type +
-          '</td>',
-        '<td class="amt-cell" style="width:25%">' + fmt(amount.total) + '</td>',
-        '</tr></table>',
+        '</tr>' +
+          (billing.items && billing.items.length > 0
+            ? billing.items
+                .map(
+                  (it: any) =>
+                    `<tr><td style="width:50%">${
+                      it.name
+                    }</td><td class="center" style="width:25%;color:#7A9490">${
+                      billing.type
+                    }</td><td class="amt-cell" style="width:25%">${fmt(
+                      it.amount,
+                    )}</td></tr>`,
+                )
+                .join('')
+            : `<tr><td style="width:50%">${
+                billing.service
+              }</td><td class="center" style="width:25%;color:#7A9490">${
+                billing.type
+              }</td><td class="amt-cell" style="width:25%">${fmt(
+                amount.total,
+              )}</td></tr>`) +
+          '</table>',
 
         // Amount breakdown
         '<div class="amount-box">',
@@ -193,6 +212,18 @@ export default function ReviewInvoiceScreen({navigation, route}: any) {
           fmt(amount.payable) +
           '</span></div>',
         paymentsHtml,
+        '<div class="amt-row"><span class="amt-label">Total Paid</span><span class="amt-val">' +
+          fmt(amount.totalPaid) +
+          '</span></div>',
+        amount.extraPaid > 0
+          ? '<div class="amt-row"><span class="amt-label">Extra Paid</span><span class="amt-val">' +
+            fmt(amount.extraPaid) +
+            '</span></div>'
+          : amount.totalPaid > 0
+          ? '<div class="amt-row"><span class="amt-label">Advance Paid</span><span class="amt-val">' +
+            fmt(amount.totalPaid) +
+            '</span></div>'
+          : '',
         '<div class="amt-row"><span class="amt-label">Balance Due</span><span class="amt-val">' +
           fmt(amount.balanceDue) +
           '</span></div>',
@@ -213,15 +244,6 @@ export default function ReviewInvoiceScreen({navigation, route}: any) {
         '<div class="ins-text">This is a valid e-bill generated by VedaMotion Care. To verify its authenticity, please email vedamotioncare@gmail.com quoting the invoice number. A confirmation will be sent after the bill is verified against our records.</div>',
         '</div>',
 
-        // Physiotherapist
-        '<p class="physio">Treating Physiotherapist: <span class="physio-name">Dr. Yash Pratihasta, PT | BPT</span></p>',
-
-        // Signatures
-        '<div class="signatures">',
-        '<div class="sig-block"><div class="sig-line"></div><div class="sig-label">Patient Signature</div></div>',
-        '<div class="sig-block"><div class="sig-line"></div><div class="sig-label">Clinic Stamp / Sign</div></div>',
-        '</div>',
-
         // Footer
         '<div class="footer">VedaMotion Care · Service & Payment Policy applies · Where Every Move Heals</div>',
 
@@ -230,7 +252,7 @@ export default function ReviewInvoiceScreen({navigation, route}: any) {
 
       const pdf = await RNHTMLtoPDF.convert({
         html: h,
-        fileName: `Invoice_${billing.invoiceNo}`,
+        fileName: `Invoice_${billing.invoiceNo.replace(/\//g, '-')}`,
       });
 
       if (!pdf.filePath) {
@@ -244,6 +266,7 @@ export default function ReviewInvoiceScreen({navigation, route}: any) {
         billing,
         amount,
         note,
+        therapist,
       });
     } catch (error: any) {
       if (error?.message !== 'User did not share') {
@@ -293,7 +316,33 @@ export default function ReviewInvoiceScreen({navigation, route}: any) {
           <Text style={styles.patientReg}>{patient.reg}</Text>
         </SectionCard>
 
+        {/* Therapist section */}
+        {therapist ? (
+          <SectionCard title="Physiotherapist">
+            <Text style={styles.patientName}>{therapist}</Text>
+          </SectionCard>
+        ) : null}
+
         {/* Billing section */}
+        <SectionCard title="Invoice Details">
+          <Row label="Invoice No." value={billing.invoiceNo} dimLabel />
+          <Row label="Invoice Date" value={billing.date} dimLabel />
+          <Row label="Due Date" value={billing.due} dimLabel />
+          <Row label="Billing Type" value={billing.type} dimLabel />
+          <View style={styles.spacer} />
+          <Text style={styles.sectionSubLabel}>SERVICES</Text>
+          {(billing.items && billing.items.length > 0
+            ? billing.items
+            : [{name: billing.service, amount: amount.total}]
+          ).map((it: any, idx: number) => (
+            <Row
+              key={idx}
+              label={it.name}
+              value={`₹${(it.amount || 0).toLocaleString('en-IN')}`}
+              dimLabel
+            />
+          ))}
+        </SectionCard>
 
         {/* Amount section */}
         <SectionCard title="Amount">
@@ -323,13 +372,29 @@ export default function ReviewInvoiceScreen({navigation, route}: any) {
           {amount.payments.map((p: any, i: any) => (
             <Row
               key={i}
-              label={`Paid — ${p.method}${
-                p.mode === 'advance' ? ' (advance)' : ''
-              }`}
+              label={`Paid — ${p.method}`}
               value={`₹${p.amount.toLocaleString('en-IN')}`}
               dimLabel
             />
           ))}
+          <Row
+            label="Total Paid"
+            value={`₹${amount.totalPaid.toLocaleString('en-IN')}`}
+            dimLabel
+          />
+          {amount.extraPaid > 0 ? (
+            <Row
+              label="Extra Paid"
+              value={`₹${amount.extraPaid.toLocaleString('en-IN')}`}
+              dimLabel
+            />
+          ) : amount.totalPaid > 0 ? (
+            <Row
+              label="Advance Paid"
+              value={`₹${amount.totalPaid.toLocaleString('en-IN')}`}
+              dimLabel
+            />
+          ) : null}
           <Row
             label="Balance Due"
             value={`₹${amount.balanceDue.toLocaleString('en-IN')}`}
@@ -338,8 +403,22 @@ export default function ReviewInvoiceScreen({navigation, route}: any) {
 
           <View style={styles.statusRow}>
             <Text style={styles.statusLabel}>Payment Status</Text>
-            <View style={styles.statusBadge}>
-              <Text style={styles.statusBadgeText}>{amount.status}</Text>
+            <View
+              style={[
+                styles.statusBadge,
+                amount.status === 'Paid' && {backgroundColor: '#E8F5EC'},
+                amount.status === 'Partial' && {backgroundColor: '#FEF3E2'},
+                amount.status === 'Pending' && {backgroundColor: '#FDECEB'},
+              ]}>
+              <Text
+                style={[
+                  styles.statusBadgeText,
+                  amount.status === 'Paid' && {color: '#27AE60'},
+                  amount.status === 'Partial' && {color: '#E67E22'},
+                  amount.status === 'Pending' && {color: '#C0392B'},
+                ]}>
+                {amount.status}
+              </Text>
             </View>
           </View>
         </SectionCard>
@@ -353,14 +432,11 @@ export default function ReviewInvoiceScreen({navigation, route}: any) {
 
       {/* Sticky bottom */}
       <View style={styles.bottomBar}>
-        {/* Note / Remarks */}
         <TouchableOpacity
-          style={styles.noteBtn}
+          style={styles.editInvoiceBtn}
           activeOpacity={0.8}
-          onPress={() => navigation.goBack()}>
-          <Text style={styles.noteBtnText}>
-            {note ? 'Edit note / remarks' : '+ Add note / remarks'}
-          </Text>
+          onPress={handleEdit}>
+          <Text style={styles.editInvoiceBtnText}>Edit Invoice</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.generateBtn}
@@ -492,6 +568,13 @@ const styles = StyleSheet.create({
   },
 
   spacer: {height: 4},
+  sectionSubLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: COLORS.teal,
+    letterSpacing: 0.8,
+    marginBottom: 2,
+  },
 
   // Status
   statusRow: {
@@ -529,6 +612,18 @@ const styles = StyleSheet.create({
     gap: 8,
     borderTopWidth: 1,
     borderTopColor: COLORS.border,
+  },
+  editInvoiceBtn: {
+    borderWidth: 1.5,
+    borderColor: COLORS.teal,
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  editInvoiceBtnText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: COLORS.teal,
   },
   generateBtn: {
     backgroundColor: COLORS.teal,
