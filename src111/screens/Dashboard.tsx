@@ -12,23 +12,10 @@ import {
   Platform,
   Alert,
 } from 'react-native';
-import React, {useState, useEffect, useCallback} from 'react';
-import {useNavigation, useFocusEffect} from '@react-navigation/native';
+import React from 'react';
+import {useNavigation} from '@react-navigation/native';
 import {Plus, X, Download} from 'lucide-react-native';
 import RNFS from 'react-native-fs';
-import Share from 'react-native-share';
-import {
-  getAllInvoices,
-  getAllPatients,
-  getDashboardStats,
-  insertPatient,
-  getPatientByReg,
-} from '../database';
-import type {
-  InvoiceSummary,
-  PatientListItem,
-  DashboardStats,
-} from '../types';
 
 const COLORS = {
   teal: '#2E7D72',
@@ -57,16 +44,107 @@ const COLORS = {
   redLight: '#FDECEB',
 };
 
+const invoices = [
+  {
+    id: 'KJ',
+    name: 'Kavita Joshi',
+    invoice: 'VMC-INV-260621-02',
+    type: 'Per-Visit',
+    amount: '₹1,200',
+    status: 'Paid',
+  },
+  {
+    id: 'RV',
+    name: 'Rohit Verma',
+    invoice: 'VMC-INV-260621-01',
+    type: 'Weekly',
+    amount: '₹3,500',
+    status: 'Partial',
+  },
+  {
+    id: 'PS',
+    name: 'Priya Sharma',
+    invoice: 'VMC-INV-260620-04',
+    type: 'Package',
+    amount: '₹6,000',
+    status: 'Unpaid',
+    multiLine: true,
+  },
+  {
+    id: 'AC',
+    name: 'Anita Choudhary',
+    invoice: 'VMC-INV-260620-03',
+    type: 'Weekly',
+    amount: '₹2,800',
+    status: 'Paid',
+  },
+  {
+    id: 'SM',
+    name: 'Suresh Mehta',
+    invoice: 'VMC-INV-260619-02',
+    type: 'Per-Visit',
+    amount: '₹1,200',
+    status: 'Paid',
+  },
+];
+
 const parseAmt = (s: string) => Number(s.replace(/[^0-9]/g, ''));
 
-const statusStyles: Record<string, {bg: string; text: string}> = {
-  Paid: {bg: COLORS.greenLight, text: COLORS.green},
-  Partial: {bg: COLORS.amberLight, text: COLORS.amber},
-  Unpaid: {bg: COLORS.redLight, text: COLORS.red},
-  'Over Paid': {bg: COLORS.greenLight, text: COLORS.green},
-  'Advance Paid': {bg: COLORS.greenLight, text: COLORS.green},
-  'Partial Paid': {bg: COLORS.amberLight, text: COLORS.amber},
-  Due: {bg: COLORS.redLight, text: COLORS.red},
+const paid = invoices.filter(i => i.status === 'Paid');
+const partial = invoices.filter(i => i.status === 'Partial');
+const unpaid = invoices.filter(i => i.status === 'Unpaid');
+
+const paidTotal = paid.reduce((sum, i) => sum + parseAmt(i.amount), 0);
+const partialTotal = partial.reduce((sum, i) => sum + parseAmt(i.amount), 0);
+const unpaidTotal = unpaid.reduce((sum, i) => sum + parseAmt(i.amount), 0);
+
+const stats = [
+  {
+    label: 'PAID',
+    value: `${paid.length} · ₹${paidTotal.toLocaleString('en-IN')}`,
+    bgColor: COLORS.greenLight,
+    textColor: COLORS.green,
+  },
+  {
+    label: 'PARTIAL',
+    value: `${partial.length} · ₹${partialTotal.toLocaleString('en-IN')}`,
+    bgColor: COLORS.amberLight,
+    textColor: COLORS.amber,
+  },
+  {
+    label: 'UNPAID',
+    value: `${unpaid.length} · ₹${unpaidTotal.toLocaleString('en-IN')}`,
+    bgColor: COLORS.redLight,
+    textColor: COLORS.red,
+  },
+];
+
+const PATIENTS = [
+  {id: 'PS', name: 'Priya Sharma', reg: 'VMCPTREG-0124', lastVisit: '18 Jun'},
+  {id: 'RV', name: 'Rohit Verma', reg: 'VMCPTREG-0098', lastVisit: '20 Jun'},
+  {
+    id: 'AC',
+    name: 'Anita Choudhary',
+    reg: 'VMCPTREG-0145',
+    lastVisit: '15 Jun',
+  },
+  {id: 'SM', name: 'Suresh Mehta', reg: 'VMCPTREG-0067', lastVisit: '10 Jun'},
+  {id: 'KJ', name: 'Kavita Joshi', reg: 'VMCPTREG-0156', lastVisit: '21 Jun'},
+];
+
+const statusStyles = {
+  Paid: {
+    bg: COLORS.greenLight,
+    text: COLORS.green,
+  },
+  Partial: {
+    bg: COLORS.amberLight,
+    text: COLORS.amber,
+  },
+  Unpaid: {
+    bg: COLORS.redLight,
+    text: COLORS.red,
+  },
 };
 
 function StatCard({label, value, bgColor, textColor}: any) {
@@ -125,7 +203,7 @@ function PatientRow({item, isLast, onSelect}: any) {
       <View style={styles.patientInfo}>
         <Text style={styles.patientName}>{item.name}</Text>
         <Text style={styles.patientMeta}>
-          {item.reg} · Last visit {item.date}
+          {item.reg} · Last visit {item.lastVisit}
         </Text>
       </View>
     </TouchableOpacity>
@@ -133,124 +211,57 @@ function PatientRow({item, isLast, onSelect}: any) {
 }
 
 export default function Dashboard() {
-  const navigation = useNavigation<any>();
-  const [invoiceModal, setInvoiceModal] = useState(false);
-  const [query, setQuery] = useState('');
-  const [newName, setNewName] = useState('');
-  const [newPhone, setNewPhone] = useState('+91');
-  const [newAddress, setNewAddress] = useState('');
-  const [invoices, setInvoices] = useState<InvoiceSummary[]>([]);
-  const [patients, setPatients] = useState<PatientListItem[]>([]);
+  const [invoiceModal, setInvoiceModal] = React.useState(false);
+  const [query, setQuery] = React.useState('');
+  const [newName, setNewName] = React.useState('');
+  const [newPhone, setNewPhone] = React.useState('+91');
+  const [newAddress, setNewAddress] = React.useState('');
 
-  const loadData = useCallback(async () => {
-    try {
-      const [invList, patList] = await Promise.all([
-        getAllInvoices(),
-        getAllPatients(),
-      ]);
-      setInvoices(invList);
-      setPatients(patList);
-    } catch {}
-  }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      loadData();
-    }, [loadData]),
-  );
-
-  const paidTotal = invoices
-    .filter(i => i.status === 'Paid')
-    .reduce((sum, i) => sum + parseAmt(i.amount), 0);
-  const partialTotal = invoices
-    .filter(i => i.status === 'Partial')
-    .reduce((sum, i) => sum + parseAmt(i.amount), 0);
-  const unpaidTotal = invoices
-    .filter(i => i.status === 'Unpaid')
-    .reduce((sum, i) => sum + parseAmt(i.amount), 0);
-
-  const stats = [
-    {
-      label: 'PAID',
-      value: `${invoices.filter(i => i.status === 'Paid').length} · ₹${paidTotal.toLocaleString('en-IN')}`,
-      bgColor: COLORS.greenLight,
-      textColor: COLORS.green,
-    },
-    {
-      label: 'PARTIAL',
-      value: `${invoices.filter(i => i.status === 'Partial').length} · ₹${partialTotal.toLocaleString('en-IN')}`,
-      bgColor: COLORS.amberLight,
-      textColor: COLORS.amber,
-    },
-    {
-      label: 'UNPAID',
-      value: `${invoices.filter(i => i.status === 'Unpaid').length} · ₹${unpaidTotal.toLocaleString('en-IN')}`,
-      bgColor: COLORS.redLight,
-      textColor: COLORS.red,
-    },
-  ];
-
-  const filtered = patients.filter(
+  const filtered = PATIENTS.filter(
     p =>
       p.name.toLowerCase().includes(query.toLowerCase()) ||
       p.reg.toLowerCase().includes(query.toLowerCase()),
   );
 
-  const handleSelectPatient = (patient: PatientListItem) => {
+  const handleSelectPatient = (patient: any) => {
     navigation.navigate('NewInvoice', {patient});
     setInvoiceModal(false);
   };
 
-  const handleUseNewPatient = async () => {
+  const navigation = useNavigation<any>();
+
+  const handleUseNewPatient = () => {
     if (!newName.trim()) {
       Alert.alert('Required', "Please enter the patient's full name.");
       return;
     }
-    try {
-      const saved = await insertPatient({
-        name: newName.trim(),
-        phone: newPhone,
-        address: newAddress,
-      });
-      await loadData();
-      navigation.navigate('NewInvoice', {patient: saved});
-      setInvoiceModal(false);
-      setNewName('');
-      setNewPhone('+91');
-      setNewAddress('');
-    } catch (error: any) {
-      Alert.alert('Error', error?.message || 'Failed to create patient.');
-    }
+    navigation.navigate('NewInvoice');
   };
 
   const handleExport = async () => {
-    const csvHeader = 'Patient,Invoice,Type,Amount,Status\n';
-    const csvRows = invoices
-      .map(
-        i =>
-          `${i.name},${i.invoice},${i.type},${i.amount.replace('₹', '')},${
-            i.status
-          }`,
-      )
-      .join('\n');
-    const csv = csvHeader + csvRows;
     try {
-      const path = `${RNFS.DocumentDirectoryPath}/RecentInvoices.csv`;
+      const csvHeader = 'Patient,Invoice,Type,Amount,Status\n';
+      const csvRows = invoices
+        .map(
+          i =>
+            `${i.name},${i.invoice},${i.type},${i.amount.replace('₹', '')},${
+              i.status
+            }`,
+        )
+        .join('\n');
+      const csv = csvHeader + csvRows;
+      const destDir =
+        Platform.OS === 'android'
+          ? RNFS.DownloadDirectoryPath
+          : RNFS.DocumentDirectoryPath;
+      const path = `${destDir}/RecentInvoices.csv`;
       await RNFS.writeFile(path, csv, 'utf8');
-      if (Platform.OS === 'android') {
-        await Share.open({
-          urls: [`file://${path}`],
-          type: 'text/csv',
-          filename: 'RecentInvoices.csv',
-          saveToFiles: true,
-          failOnCancel: false,
-        });
-      }
-      Alert.alert('Exported', 'Saved successfully.');
+      Alert.alert(
+        'Exported',
+        `Saved to Downloads folder as RecentInvoices.csv`,
+      );
     } catch (error: any) {
-      if (error?.message !== 'User did not share') {
-        Alert.alert('Error', error?.message || 'Failed to export.');
-      }
+      Alert.alert('Error', error?.message || 'Failed to export.');
     }
   };
 

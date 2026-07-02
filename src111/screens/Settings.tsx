@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useCallback} from 'react';
+import React, {useState} from 'react';
 import {
   View,
   Text,
@@ -14,9 +14,6 @@ import {
   Platform,
 } from 'react-native';
 import {launchImageLibrary} from 'react-native-image-picker';
-import {useFocusEffect} from '@react-navigation/native';
-import {getClinicSettings, saveClinicSettings} from '../database';
-import type {ClinicSettings} from '../types';
 
 const COLORS = {
   teal: '#2E7D72',
@@ -37,7 +34,7 @@ const COLORS = {
   footerBold: '#FFFFFF',
 };
 
-const DEFAULTS: ClinicSettings = {
+const INITIAL = {
   clinicName: 'VedaMotion Care',
   tagline: 'Where Every Move Heals',
   phone: '+91 8875115254',
@@ -84,31 +81,13 @@ function Field({
 }
 
 export default function ClinicProfileScreen() {
-  const [form, setForm] = useState<ClinicSettings>(DEFAULTS);
-  const [loaded, setLoaded] = useState(false);
+  const [form, setForm] = useState(INITIAL);
 
-  const set = (key: keyof ClinicSettings) => (val: string) =>
+  const set = (key: keyof typeof INITIAL) => (val: string) =>
     setForm(prev => ({...prev, [key]: val}));
 
-  useFocusEffect(
-    useCallback(() => {
-      (async () => {
-        try {
-          const saved = await getClinicSettings();
-          if (saved) setForm(saved);
-        } catch {}
-        setLoaded(true);
-      })();
-    }, []),
-  );
-
-  const handleSave = async () => {
-    try {
-      await saveClinicSettings(form);
-      Alert.alert('Saved', 'Clinic profile updated successfully.');
-    } catch (error: any) {
-      Alert.alert('Error', error?.message || 'Failed to save settings.');
-    }
+  const handleSave = () => {
+    Alert.alert('Saved', 'Clinic profile updated successfully.');
   };
 
   const handlePickLogo = () => {

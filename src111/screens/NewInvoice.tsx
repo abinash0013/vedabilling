@@ -13,8 +13,6 @@ import {
   Alert,
   Modal,
 } from 'react-native';
-import RNFS from 'react-native-fs';
-import {insertInvoice} from '../database';
 
 const COLORS = {
   teal: '#2E7D72',
@@ -79,7 +77,7 @@ const SERVICE_PRICES: Record<string, string> = {
 
 const PAYMENT_METHODS = ['Cash', 'UPI', 'Card', 'Bank Transfer', 'Cheque'];
 
-const STATUS_OPTIONS = ['Due', 'Advance Paid', 'Partial Paid', 'Over Paid'];
+const STATUS_OPTIONS = ['Paid', 'Partial', 'Pending'];
 
 const formatDateString = (d: Date) => {
   const dd = String(d.getDate()).padStart(2, '0');
@@ -224,20 +222,16 @@ function DatePickerModal({visible, currentDate, onSelect, onClose}: any) {
   );
 }
 
-export default function NewInvoiceStep2({navigation, route}: any) {
-  const paramsPatient = route?.params?.patient;
+export default function NewInvoiceStep2({navigation}: any) {
   const today = new Date();
   const [invoiceNo, setInvoiceNo] = useState(generateInvoiceNo());
   const [invoiceDate, setInvoiceDate] = useState(formatDateString(today));
   const [dueDate, setDueDate] = useState(formatDateString(addDays(today, 7)));
   const [therapist, setTherapist] = useState('Dr. Yash Pratihasta, PT');
-  const [selectedPatient, setSelectedPatient] = useState(paramsPatient || null);
   const [billingType, setBillingType] = useState('Per-Visit');
-  const [items, setItems] = useState<
-    {name: string; amount: string; qty: string}[]
-  >([
-    {name: 'Cupping', amount: '500', qty: '1'},
-    {name: 'Other Therapy', amount: '800', qty: '1'},
+  const [items, setItems] = useState<{name: string; amount: string}[]>([
+    {name: 'Cupping', amount: '500'},
+    {name: 'Other Therapy', amount: '800'},
   ]);
   const [customTag, setCustomTag] = useState('');
   const [discount, setDiscount] = useState('0');
@@ -252,7 +246,7 @@ export default function NewInvoiceStep2({navigation, route}: any) {
   >(null);
 
   const totalAmount = items.reduce(
-    (s, it) => s + (parseInt(it.amount) || 0) * (parseInt(it.qty) || 1),
+    (s, it) => s + (parseInt(it.amount) || 0),
     0,
   );
   const payable = Math.max(0, totalAmount - (parseInt(discount) || 0));
@@ -261,81 +255,16 @@ export default function NewInvoiceStep2({navigation, route}: any) {
   const balanceDue = Math.max(0, payable - totalPaid);
 
   const getStatus = () => {
-    if (totalPaid === 0) return 'Due';
-    if (totalPaid >= payable) return 'Over Paid';
-    if (billingType === 'Package') return 'Advance Paid';
-    return 'Partial Paid';
+    if (totalPaid >= payable && payable > 0) return 'Paid';
+    if (totalPaid > 0) return 'Partial';
+    return 'Pending';
   };
 
   const description = items.map(it => it.name).join(' + ') || '—';
 
-  const buildInvoiceData = () => ({
-    id: invoiceNo,
-    invoiceNo,
-    invoiceDate,
-    dueDate,
-    therapist,
-    billingType,
-    patient: selectedPatient || {name: 'New Patient', reg: 'VMCPTREG-0157'},
-    items: items.map(it => ({
-      name: it.name,
-      unitPrice: parseInt(it.amount) || 0,
-      qty: parseInt(it.qty) || 1,
-    })),
-    total: totalAmount,
-    discount: parseInt(discount) || 0,
-    payable,
-    payments: payments.map(p => ({
-      amount: parseInt(p.amount) || 0,
-      method: p.method,
-    })),
-    totalPaid,
-    extraPaid,
-    balanceDue,
-    status: paymentStatus || getStatus(),
-    note,
-    createdAt: new Date().toISOString(),
-  });
-
-  const saveInvoice = async () => {
-    try {
-      const data = buildInvoiceData();
-      const dir = RNFS.DocumentDirectoryPath + '/invoices';
-      const exists = await RNFS.exists(dir);
-      if (!exists) await RNFS.mkdir(dir);
-      const path = dir + '/' + invoiceNo.replace(/\//g, '-') + '.json';
-      await RNFS.writeFile(path, JSON.stringify(data, null, 2), 'utf8');
-      await insertInvoice({
-        id: data.id,
-        invoiceNo: data.invoiceNo,
-        invoiceDate: data.invoiceDate,
-        dueDate: data.dueDate,
-        therapist: data.therapist,
-        patientReg: data.patient.reg,
-        patientName: data.patient.name,
-        billingType: data.billingType,
-        items: data.items,
-        total: data.total,
-        discount: data.discount,
-        payable: data.payable,
-        payments: data.payments,
-        totalPaid: data.totalPaid,
-        extraPaid: data.extraPaid,
-        balanceDue: data.balanceDue,
-        status: data.status,
-        note: data.note,
-        createdAt: data.createdAt,
-        updatedAt: data.createdAt,
-      });
-      Alert.alert('Saved', `Invoice saved successfully.`);
-    } catch (error: any) {
-      Alert.alert('Error', error?.message || 'Failed to save invoice.');
-    }
-  };
-
   const addItem = (name: string) => {
     const price = SERVICE_PRICES[name] || '0';
-    setItems([...items, {name, amount: price, qty: '1'}]);
+    setItems([...items, {name, amount: price}]);
   };
 
   const removeItem = (idx: number) => {
@@ -349,7 +278,7 @@ export default function NewInvoiceStep2({navigation, route}: any) {
   const addCustomItem = () => {
     const t = customTag.trim();
     if (t) {
-      setItems([...items, {name: t, amount: '0', qty: '1'}]);
+      setItems([...items, {name: t, amount: '0'}]);
       setCustomTag('');
     }
   };
@@ -400,21 +329,15 @@ export default function NewInvoiceStep2({navigation, route}: any) {
           {/* Patient card */}
           <View style={styles.patientCard}>
             <View style={styles.avatarSmall}>
-              <Text style={styles.avatarSmallText}>
-                {selectedPatient ? selectedPatient.id?.slice(0, 2) : 'NP'}
-              </Text>
+              <Text style={styles.avatarSmallText}>NP</Text>
             </View>
             <View style={styles.patientInfo}>
-              <Text style={styles.patientName}>
-                {selectedPatient?.name || 'New Patient'}
-              </Text>
-              <Text style={styles.patientReg}>
-                {selectedPatient?.reg || 'VMCPTREG-0157 (assigned)'}
-              </Text>
+              <Text style={styles.patientName}>New Patient</Text>
+              <Text style={styles.patientReg}>VMCPTREG-0157 (assigned)</Text>
             </View>
-            {/* <TouchableOpacity style={styles.changeBtn} activeOpacity={0.8} onPress={() => navigation.navigate('PatientList')}>
+            <TouchableOpacity style={styles.changeBtn} activeOpacity={0.8}>
               <Text style={styles.changeBtnText}>Change</Text>
-            </TouchableOpacity> */}
+            </TouchableOpacity>
           </View>
 
           {/* Therapist */}
@@ -544,13 +467,6 @@ export default function NewInvoiceStep2({navigation, route}: any) {
                   onChangeText={v => updateItem(idx, 'name', v)}
                   placeholderTextColor={COLORS.placeholder}
                 />
-                <TextInput
-                  style={[styles.input, styles.itemQtyInput]}
-                  value={item.qty}
-                  onChangeText={v => updateItem(idx, 'qty', v)}
-                  keyboardType="numeric"
-                  placeholderTextColor={COLORS.placeholder}
-                />
                 <View style={styles.itemAmountWrapper}>
                   <TextInput
                     style={[styles.input, styles.itemAmountInput]}
@@ -673,17 +589,13 @@ export default function NewInvoiceStep2({navigation, route}: any) {
               </View>
               <View style={styles.colHalf}>
                 <FieldLabel
-                  label={
-                    billingType === 'Package'
-                      ? 'ADVANCE PAID (₹)'
-                      : 'EXTRA PAID (₹)'
-                  }
+                  label={extraPaid > 0 ? 'EXTRA PAID (₹)' : 'ADVANCE PAID (₹)'}
                 />
                 <View style={[styles.input, styles.disabledInput]}>
                   <Text style={styles.disabledText}>
-                    {billingType === 'Package'
-                      ? totalPaid.toLocaleString('en-IN')
-                      : extraPaid.toLocaleString('en-IN')}
+                    {extraPaid > 0
+                      ? extraPaid.toLocaleString('en-IN')
+                      : totalPaid.toLocaleString('en-IN')}
                   </Text>
                 </View>
               </View>
@@ -759,7 +671,7 @@ export default function NewInvoiceStep2({navigation, route}: any) {
             <TouchableOpacity
               style={styles.draftBtn}
               activeOpacity={0.8}
-              onPress={saveInvoice}>
+              onPress={() => Alert.alert('Saved', 'Invoice saved as draft.')}>
               <Text style={styles.draftBtnText}>Save Draft</Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -769,10 +681,7 @@ export default function NewInvoiceStep2({navigation, route}: any) {
                 navigation.navigate('PreviewInvoice', {
                   note,
                   therapist,
-                  patient: selectedPatient || {
-                    name: 'New Patient',
-                    reg: 'VMCPTREG-0157',
-                  },
+                  patient: {name: 'New Patient', reg: 'VMCPTREG-0157'},
                   billing: {
                     invoiceNo,
                     date: invoiceDate,
@@ -781,10 +690,7 @@ export default function NewInvoiceStep2({navigation, route}: any) {
                     service: description,
                     items: items.map(it => ({
                       name: it.name,
-                      unitPrice: parseInt(it.amount) || 0,
-                      qty: parseInt(it.qty) || 1,
-                      amount:
-                        (parseInt(it.amount) || 0) * (parseInt(it.qty) || 1),
+                      amount: parseInt(it.amount) || 0,
                     })),
                   },
                   amount: {
@@ -1017,7 +923,6 @@ const styles = StyleSheet.create({
   // Item row
   itemRow: {flexDirection: 'row', gap: 8, alignItems: 'center'},
   itemNameInput: {flex: 2},
-  itemQtyInput: {width: 48, textAlign: 'center'},
   itemAmountWrapper: {flex: 1},
   itemAmountInput: {textAlign: 'right'},
 

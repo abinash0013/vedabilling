@@ -171,29 +171,26 @@ export default function ReviewInvoiceScreen({navigation, route}: any) {
 
         // Service items table
         '<table><tr>',
-        '<th style="width:40%">DESCRIPTION</th>',
-        '<th class="center" style="width:15%">UNIT</th>',
-        '<th class="center" style="width:20%">TYPE</th>',
+        '<th style="width:50%">DESCRIPTION</th>',
+        '<th class="center" style="width:25%">TYPE</th>',
         '<th class="amt-cell" style="width:25%">AMOUNT</th>',
         '</tr>' +
           (billing.items && billing.items.length > 0
             ? billing.items
                 .map(
                   (it: any) =>
-                    `<tr><td style="width:40%">${
+                    `<tr><td style="width:50%">${
                       it.name
-                    }</td><td class="center" style="width:15%;color:#7A9490">${
-                      it.qty || 1
-                    }</td><td class="center" style="width:20%;color:#7A9490">${
+                    }</td><td class="center" style="width:25%;color:#7A9490">${
                       billing.type
                     }</td><td class="amt-cell" style="width:25%">${fmt(
                       it.amount,
                     )}</td></tr>`,
                 )
                 .join('')
-            : `<tr><td style="width:40%">${
+            : `<tr><td style="width:50%">${
                 billing.service
-              }</td><td class="center" style="width:15%;color:#7A9490">1</td><td class="center" style="width:20%;color:#7A9490">${
+              }</td><td class="center" style="width:25%;color:#7A9490">${
                 billing.type
               }</td><td class="amt-cell" style="width:25%">${fmt(
                 amount.total,
@@ -218,11 +215,13 @@ export default function ReviewInvoiceScreen({navigation, route}: any) {
         '<div class="amt-row"><span class="amt-label">Total Paid</span><span class="amt-val">' +
           fmt(amount.totalPaid) +
           '</span></div>',
-        amount.totalPaid > 0
-          ? '<div class="amt-row"><span class="amt-label">' +
-            (billing.type === 'Package' ? 'Advance Paid' : 'Extra Paid') +
-            '</span><span class="amt-val">' +
-            fmt(billing.type === 'Package' ? amount.totalPaid : amount.extraPaid) +
+        amount.extraPaid > 0
+          ? '<div class="amt-row"><span class="amt-label">Extra Paid</span><span class="amt-val">' +
+            fmt(amount.extraPaid) +
+            '</span></div>'
+          : amount.totalPaid > 0
+          ? '<div class="amt-row"><span class="amt-label">Advance Paid</span><span class="amt-val">' +
+            fmt(amount.totalPaid) +
             '</span></div>'
           : '',
         '<div class="amt-row"><span class="amt-label">Balance Due</span><span class="amt-val">' +
@@ -338,7 +337,7 @@ export default function ReviewInvoiceScreen({navigation, route}: any) {
           ).map((it: any, idx: number) => (
             <Row
               key={idx}
-              label={`${it.name}${it.qty ? ` × ${it.qty}` : ''}`}
+              label={it.name}
               value={`₹${(it.amount || 0).toLocaleString('en-IN')}`}
               dimLabel
             />
@@ -383,10 +382,16 @@ export default function ReviewInvoiceScreen({navigation, route}: any) {
             value={`₹${amount.totalPaid.toLocaleString('en-IN')}`}
             dimLabel
           />
-          {amount.totalPaid > 0 ? (
+          {amount.extraPaid > 0 ? (
             <Row
-              label={billing.type === 'Package' ? 'Advance Paid' : 'Extra Paid'}
-              value={`₹${(billing.type === 'Package' ? amount.totalPaid : amount.extraPaid).toLocaleString('en-IN')}`}
+              label="Extra Paid"
+              value={`₹${amount.extraPaid.toLocaleString('en-IN')}`}
+              dimLabel
+            />
+          ) : amount.totalPaid > 0 ? (
+            <Row
+              label="Advance Paid"
+              value={`₹${amount.totalPaid.toLocaleString('en-IN')}`}
               dimLabel
             />
           ) : null}
@@ -401,16 +406,16 @@ export default function ReviewInvoiceScreen({navigation, route}: any) {
             <View
               style={[
                 styles.statusBadge,
-                (amount.status === 'Over Paid' || amount.status === 'Advance Paid') && {backgroundColor: '#E8F5EC'},
-                amount.status === 'Partial Paid' && {backgroundColor: '#FEF3E2'},
-                amount.status === 'Due' && {backgroundColor: '#FDECEB'},
+                amount.status === 'Paid' && {backgroundColor: '#E8F5EC'},
+                amount.status === 'Partial' && {backgroundColor: '#FEF3E2'},
+                amount.status === 'Pending' && {backgroundColor: '#FDECEB'},
               ]}>
               <Text
                 style={[
                   styles.statusBadgeText,
-                  (amount.status === 'Over Paid' || amount.status === 'Advance Paid') && {color: '#27AE60'},
-                  amount.status === 'Partial Paid' && {color: '#E67E22'},
-                  amount.status === 'Due' && {color: '#C0392B'},
+                  amount.status === 'Paid' && {color: '#27AE60'},
+                  amount.status === 'Partial' && {color: '#E67E22'},
+                  amount.status === 'Pending' && {color: '#C0392B'},
                 ]}>
                 {amount.status}
               </Text>

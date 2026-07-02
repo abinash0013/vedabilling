@@ -1,4 +1,4 @@
-import React, {useState, useCallback} from 'react';
+import React, {useState} from 'react';
 import {
   View,
   Text,
@@ -13,9 +13,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import {useNavigation, useFocusEffect} from '@react-navigation/native';
-import {getAllPatients, insertPatient} from '../database';
-import type {PatientListItem, NewPatientInput} from '../types';
+import {useNavigation} from '@react-navigation/native';
 
 const COLORS = {
   teal: '#2E7D72',
@@ -32,7 +30,43 @@ const COLORS = {
   plusBtn: 'rgba(255,255,255,0.25)',
 };
 
-
+const ALL_PATIENTS = [
+  {
+    id: 'PS',
+    name: 'Priya Sharma',
+    reg: 'VMCPTREG-0124',
+    invoices: 7,
+    date: '18 Jun',
+  },
+  {
+    id: 'RV',
+    name: 'Rohit Verma',
+    reg: 'VMCPTREG-0098',
+    invoices: 12,
+    date: '20 Jun',
+  },
+  {
+    id: 'AC',
+    name: 'Anita Choudhary',
+    reg: 'VMCPTREG-0145',
+    invoices: 4,
+    date: '15 Jun',
+  },
+  {
+    id: 'SM',
+    name: 'Suresh Mehta',
+    reg: 'VMCPTREG-0067',
+    invoices: 9,
+    date: '10 Jun',
+  },
+  {
+    id: 'KJ',
+    name: 'Kavita Joshi',
+    reg: 'VMCPTREG-0156',
+    invoices: 2,
+    date: '21 Jun',
+  },
+];
 
 function Avatar({initials}: any) {
   return (
@@ -63,24 +97,9 @@ function PatientRow({item, isLast, onPress}: any) {
 export default function PatientsScreen() {
   const navigation = useNavigation<any>();
   const [query, setQuery] = useState('');
-  const [patients, setPatients] = useState<PatientListItem[]>([]);
+  const [patients, setPatients] = useState(ALL_PATIENTS);
   const [modalVisible, setModalVisible] = useState(false);
   const [newName, setNewName] = useState('');
-  const [newPhone, setNewPhone] = useState('');
-  const [newAddress, setNewAddress] = useState('');
-
-  const loadPatients = useCallback(async () => {
-    try {
-      const list = await getAllPatients();
-      setPatients(list);
-    } catch {}
-  }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      loadPatients();
-    }, [loadPatients]),
-  );
 
   const filtered = patients.filter(
     p =>
@@ -88,26 +107,44 @@ export default function PatientsScreen() {
       p.reg.toLowerCase().includes(query.toLowerCase()),
   );
 
-  const handleAdd = async () => {
+  const generateReg = () => {
+    const lastNum = patients.reduce((max, p) => {
+      const n = parseInt(p.reg.replace('VMCPTREG-', ''), 10);
+      return n > max ? n : max;
+    }, 0);
+    return 'VMCPTREG-' + String(lastNum + 1).padStart(4, '0');
+  };
+
+  const getInitials = (name: string) =>
+    name
+      .split(' ')
+      .map((w: string) => w[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+
+  const handleAdd = () => {
     const trimmed = newName.trim();
     if (!trimmed) {
       Alert.alert('Error', 'Please enter a patient name.');
       return;
     }
-    try {
-      await insertPatient({
+    const now = new Date();
+    const day = String(now.getDate()).padStart(2, '0');
+    const month = now.toLocaleString('en-US', {month: 'short'});
+    const date = `${day} ${month}`;
+    setPatients(prev => [
+      ...prev,
+      {
+        id: getInitials(trimmed),
         name: trimmed,
-        phone: newPhone.trim(),
-        address: newAddress.trim(),
-      });
-      await loadPatients();
-      setNewName('');
-      setNewPhone('');
-      setNewAddress('');
-      setModalVisible(false);
-    } catch (error: any) {
-      Alert.alert('Error', error?.message || 'Failed to add patient.');
-    }
+        reg: generateReg(),
+        invoices: 0,
+        date,
+      },
+    ]);
+    setNewName('');
+    setModalVisible(false);
   };
 
   return (
@@ -153,7 +190,7 @@ export default function PatientsScreen() {
               <PatientRow
                 item={item}
                 isLast={index === filtered.length - 1}
-                onPress={() => navigation.navigate('PatientHistory', {patient: item})}
+                onPress={() => navigation.navigate('PatientHistory')}
               />
             )}
             ListEmptyComponent={
@@ -181,21 +218,6 @@ export default function PatientsScreen() {
               value={newName}
               onChangeText={setNewName}
               autoFocus
-            />
-            <TextInput
-              style={styles.modalInput}
-              placeholder="Phone number"
-              placeholderTextColor={COLORS.textSecondary}
-              value={newPhone}
-              onChangeText={setNewPhone}
-              keyboardType="phone-pad"
-            />
-            <TextInput
-              style={styles.modalInput}
-              placeholder="Address"
-              placeholderTextColor={COLORS.textSecondary}
-              value={newAddress}
-              onChangeText={setNewAddress}
             />
             <View style={styles.modalActions}>
               <TouchableOpacity

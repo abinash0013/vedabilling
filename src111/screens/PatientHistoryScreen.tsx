@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useCallback} from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -8,9 +8,7 @@ import {
   SafeAreaView,
   StatusBar,
 } from 'react-native';
-import {useNavigation, useRoute, useFocusEffect} from '@react-navigation/native';
-import {getPatientByReg, getInvoicesByPatient} from '../database';
-import type {Patient, InvoiceSummary} from '../types';
+import {useNavigation} from '@react-navigation/native';
 
 const COLORS = {
   teal: '#2E7D72',
@@ -31,21 +29,33 @@ const COLORS = {
   headerSub: 'rgba(255,255,255,0.7)',
 };
 
+const PATIENT = {
+  name: 'Priya Sharma',
+  reg: 'VMCPTREG-0124',
+  phone: '+91 98290 xxxxx',
+  address: 'B-12, Malviya Nagar, Jaipur',
+  totalInvoices: 7,
+  paid: '₹9,400',
+  due: '₹6,000',
+};
+
+const INVOICES = [
+  { id: 'VMC-INV-260620-04', date: '20 Jun', type: 'Package',  amount: '₹6,000', status: 'Unpaid' },
+  { id: 'VMC-INV-260610-02', date: '10 Jun', type: 'Per-Visit', amount: '₹1,200', status: 'Paid'   },
+  { id: 'VMC-INV-260603-01', date: '03 Jun', type: 'Weekly',   amount: '₹3,600', status: 'Paid'   },
+];
+
 const STATUS_STYLE: Record<string, {bg: string; text: string}> = {
-  Paid: {bg: COLORS.greenLight, text: COLORS.green},
-  Unpaid: {bg: COLORS.redLight, text: COLORS.red},
-  Partial: {bg: '#FEF3E2', text: '#E67E22'},
-  'Over Paid': {bg: COLORS.greenLight, text: COLORS.green},
-  'Advance Paid': {bg: COLORS.greenLight, text: COLORS.green},
-  'Partial Paid': {bg: '#FEF3E2', text: '#E67E22'},
-  Due: {bg: COLORS.redLight, text: COLORS.red},
+  Paid:   { bg: COLORS.greenLight, text: COLORS.green },
+  Unpaid: { bg: COLORS.redLight,   text: COLORS.red   },
+  Partial:{ bg: '#FEF3E2',         text: '#E67E22'    },
 };
 
 function StatusBadge({status}: {status: string}) {
   const s = STATUS_STYLE[status] || STATUS_STYLE.Paid;
   return (
-    <View style={[styles.badge, {backgroundColor: s.bg}]}>
-      <Text style={[styles.badgeText, {color: s.text}]}>{status}</Text>
+    <View style={[styles.badge, { backgroundColor: s.bg }]}>
+      <Text style={[styles.badgeText, { color: s.text }]}>{status}</Text>
     </View>
   );
 }
@@ -54,12 +64,11 @@ function InvoiceRow({item, isLast}: any) {
   return (
     <TouchableOpacity
       activeOpacity={0.7}
-      style={[styles.invoiceRow, isLast && styles.invoiceRowLast]}>
+      style={[styles.invoiceRow, isLast && styles.invoiceRowLast]}
+    >
       <View style={styles.invoiceLeft}>
         <Text style={styles.invoiceId}>{item.id}</Text>
-        <Text style={styles.invoiceMeta}>
-          {item.date}
-        </Text>
+        <Text style={styles.invoiceMeta}>{item.date} · {item.type}</Text>
       </View>
       <View style={styles.invoiceRight}>
         <Text style={styles.invoiceAmount}>{item.amount}</Text>
@@ -69,44 +78,8 @@ function InvoiceRow({item, isLast}: any) {
   );
 }
 
-const parseAmt = (s: string) => Number(s.replace(/[^0-9]/g, ''));
-
 export default function PatientHistoryScreen() {
   const navigation = useNavigation<any>();
-  const route = useRoute<any>();
-  const routePatient = route?.params?.patient;
-  const [patientInfo, setPatientInfo] = useState<Patient | null>(null);
-  const [invoices, setInvoices] = useState<InvoiceSummary[]>([]);
-
-  const loadData = useCallback(async () => {
-    if (!routePatient?.reg) return;
-    try {
-      const [pat, invList] = await Promise.all([
-        getPatientByReg(routePatient.reg),
-        getInvoicesByPatient(routePatient.reg),
-      ]);
-      setPatientInfo(pat);
-      setInvoices(invList);
-    } catch {}
-  }, [routePatient?.reg]);
-
-  useFocusEffect(
-    useCallback(() => {
-      loadData();
-    }, [loadData]),
-  );
-
-  const displayPatient = patientInfo || routePatient;
-  const patientName = displayPatient?.name || 'Unknown';
-  const patientReg = displayPatient?.reg || '';
-
-  const totalInvoiceCount = invoices.length;
-  const paidAmt = invoices
-    .filter(i => i.status === 'Paid' || i.status === 'Over Paid' || i.status === 'Advance Paid')
-    .reduce((s, i) => s + parseAmt(i.amount), 0);
-  const dueAmt = invoices
-    .filter(i => i.status === 'Unpaid' || i.status === 'Due' || i.status === 'Partial Paid' || i.status === 'Partial')
-    .reduce((s, i) => s + parseAmt(i.amount), 0);
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -121,8 +94,8 @@ export default function PatientHistoryScreen() {
           <Text style={styles.backArrow}>←</Text>
         </TouchableOpacity>
         <View style={styles.headerCenter}>
-          <Text style={styles.headerName}>{patientName}</Text>
-          <Text style={styles.headerReg}>{patientReg}</Text>
+          <Text style={styles.headerName}>{PATIENT.name}</Text>
+          <Text style={styles.headerReg}>{PATIENT.reg}</Text>
         </View>
         <TouchableOpacity style={styles.editBtn} activeOpacity={0.8}>
           <Text style={styles.editIcon}>📎</Text>
@@ -132,41 +105,32 @@ export default function PatientHistoryScreen() {
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.container}
-        showsVerticalScrollIndicator={false}>
+        showsVerticalScrollIndicator={false}
+      >
         {/* Contact card */}
-        {patientInfo?.phone || patientInfo?.address ? (
-          <View style={styles.contactCard}>
-            {patientInfo.phone ? (
-              <View style={styles.contactRow}>
-                <Text style={styles.contactLabel}>Phone</Text>
-                <Text style={styles.contactValue}>{patientInfo.phone}</Text>
-              </View>
-            ) : null}
-            {patientInfo.address ? (
-              <View style={[styles.contactRow, styles.contactRowLast]}>
-                <Text style={styles.contactLabel}>Address</Text>
-                <Text style={styles.contactValue}>{patientInfo.address}</Text>
-              </View>
-            ) : null}
+        <View style={styles.contactCard}>
+          <View style={styles.contactRow}>
+            <Text style={styles.contactLabel}>Phone</Text>
+            <Text style={styles.contactValue}>{PATIENT.phone}</Text>
           </View>
-        ) : null}
+          <View style={[styles.contactRow, styles.contactRowLast]}>
+            <Text style={styles.contactLabel}>Address</Text>
+            <Text style={styles.contactValue}>{PATIENT.address}</Text>
+          </View>
+        </View>
 
         {/* Stats row */}
         <View style={styles.statsRow}>
           <View style={[styles.statCard, styles.statCardBorder]}>
-            <Text style={styles.statValueNeutral}>{totalInvoiceCount}</Text>
+            <Text style={styles.statValueNeutral}>{PATIENT.totalInvoices}</Text>
             <Text style={styles.statLabel}>INVOICES</Text>
           </View>
           <View style={[styles.statCard, styles.statCardBorder]}>
-            <Text style={[styles.statValue, {color: COLORS.green}]}>
-              ₹{paidAmt.toLocaleString('en-IN')}
-            </Text>
+            <Text style={[styles.statValue, { color: COLORS.green }]}>{PATIENT.paid}</Text>
             <Text style={styles.statLabel}>PAID</Text>
           </View>
           <View style={styles.statCard}>
-            <Text style={[styles.statValue, {color: COLORS.red}]}>
-              ₹{dueAmt.toLocaleString('en-IN')}
-            </Text>
+            <Text style={[styles.statValue, { color: COLORS.red }]}>{PATIENT.due}</Text>
             <Text style={styles.statLabel}>DUE</Text>
           </View>
         </View>
@@ -175,17 +139,13 @@ export default function PatientHistoryScreen() {
         <Text style={styles.sectionTitle}>INVOICE HISTORY</Text>
 
         <View style={styles.invoiceCard}>
-          {invoices.length > 0 ? (
-            invoices.map((item, idx) => (
-              <InvoiceRow
-                key={item.id}
-                item={item}
-                isLast={idx === invoices.length - 1}
-              />
-            ))
-          ) : (
-            <Text style={styles.emptyText}>No invoices yet.</Text>
-          )}
+          {INVOICES.map((item, idx) => (
+            <InvoiceRow
+              key={item.id}
+              item={item}
+              isLast={idx === INVOICES.length - 1}
+            />
+          ))}
         </View>
 
         {/* Footer */}
@@ -275,7 +235,7 @@ const styles = StyleSheet.create({
     shadowColor: '#000',
     shadowOpacity: 0.04,
     shadowRadius: 6,
-    shadowOffset: {width: 0, height: 2},
+    shadowOffset: { width: 0, height: 2 },
     elevation: 2,
   },
   contactRow: {
@@ -311,7 +271,7 @@ const styles = StyleSheet.create({
     shadowColor: '#000',
     shadowOpacity: 0.04,
     shadowRadius: 6,
-    shadowOffset: {width: 0, height: 2},
+    shadowOffset: { width: 0, height: 2 },
     elevation: 2,
   },
   statCard: {
@@ -361,7 +321,7 @@ const styles = StyleSheet.create({
     shadowColor: '#000',
     shadowOpacity: 0.04,
     shadowRadius: 6,
-    shadowOffset: {width: 0, height: 2},
+    shadowOffset: { width: 0, height: 2 },
     elevation: 2,
   },
   invoiceRow: {
@@ -424,11 +384,5 @@ const styles = StyleSheet.create({
   footerBold: {
     fontWeight: '700',
     color: COLORS.tealDark,
-  },
-  emptyText: {
-    textAlign: 'center',
-    color: COLORS.textSecondary,
-    paddingVertical: 24,
-    fontSize: 14,
   },
 });
