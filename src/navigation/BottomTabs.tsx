@@ -4,10 +4,10 @@ import {View} from 'react-native';
 
 import Dashboard from '../screens/Dashboard';
 import PatientsList from '../screens/PatientListScreen';
+import InvoiceListScreen from '../screens/InvoiceListScreen';
 import SettingsScreen from '../screens/Settings';
-import BackupScreen from '../screens/Backup';
 
-import {LayoutDashboard, Cloud, Settings, Users} from 'lucide-react-native';
+import {LayoutDashboard, FileText, Settings, Users} from 'lucide-react-native';
 
 const Tab = createBottomTabNavigator();
 
@@ -44,34 +44,33 @@ export default function BottomTabs() {
             ),
           }}
         />
-        <Tab.Screen
-          name="Patients"
-          component={PatientsList}
-          options={{
-            tabBarIcon: ({color}: {color: string}) => (
-              <Users size={20} color={color} />
-            ),
-          }}
-        />
-        <Tab.Screen
-          name="Settings"
-          component={SettingsScreen}
-          options={{
-            tabBarIcon: ({color}: {color: string}) => (
-              <Settings size={20} color={color} />
-            ),
-          }}
-        />
-        {/* <Tab.Screen
-          name="Backup"
-          component={BackupScreen}
-          options={{
-            tabBarIcon: ({color}: {color: string}) => (
-              <Cloud size={20} color={color} />
-            ),
-            tabBarLabel: 'Backup',
-          }}
-        /> */}
+          <Tab.Screen
+            name="Patients"
+            component={PatientsList}
+            options={{
+              tabBarIcon: ({color}: {color: string}) => (
+                <Users size={20} color={color} />
+              ),
+            }}
+          />
+          <Tab.Screen
+            name="Invoices"
+            component={InvoiceListScreen}
+            options={{
+              tabBarIcon: ({color}: {color: string}) => (
+                <FileText size={20} color={color} />
+              ),
+            }}
+          />
+          <Tab.Screen
+            name="Settings"
+            component={SettingsScreen}
+            options={{
+              tabBarIcon: ({color}: {color: string}) => (
+                <Settings size={20} color={color} />
+              ),
+            }}
+          />
       </Tab.Navigator>
     </View>
   );

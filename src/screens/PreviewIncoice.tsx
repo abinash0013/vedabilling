@@ -10,6 +10,7 @@ import {
   Alert,
 } from 'react-native';
 import RNHTMLtoPDF from 'react-native-html-to-pdf';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const COLORS = {
   teal: '#2E7D72',
@@ -259,6 +260,22 @@ export default function ReviewInvoiceScreen({navigation, route}: any) {
       if (!pdf.filePath) {
         Alert.alert('Error', 'Failed to generate PDF. Please try again.');
         return;
+      }
+
+      try {
+        const existing = await AsyncStorage.getItem('invoices');
+        const list = existing ? JSON.parse(existing) : [];
+        list.unshift({
+          invoiceNo: billing.invoiceNo,
+          patientName: patient.name,
+          date: billing.date,
+          payable: amount.payable,
+          status: amount.status,
+          savedAt: new Date().toISOString(),
+        });
+        await AsyncStorage.setItem('invoices', JSON.stringify(list));
+      } catch {
+        // silent
       }
 
       navigation.navigate('EBillGenerated', {
