@@ -58,7 +58,9 @@ export interface InvoiceSummary {
   invoice: string;
   type: string;
   amount: string;
+  payable?: number;
   status: string;
+  rawStatus?: string;
   date: string;
 }
 

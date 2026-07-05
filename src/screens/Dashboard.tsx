@@ -17,6 +17,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { Plus, X, Download } from "lucide-react-native";
 import RNFS from "react-native-fs";
+import Share from "react-native-share";
 import {
   getAllInvoices,
   getAllPatients,
@@ -263,18 +264,35 @@ export default function Dashboard() {
     const csv = csvHeader + csvRows;
     try {
       const fileName = "RecentInvoices.csv";
-      const destDir =
-        Platform.OS === "android"
-          ? RNFS.DownloadDirectoryPath
-          : RNFS.DocumentDirectoryPath;
-      const destPath = `${destDir}/${fileName}`;
+      const destPath = `${RNFS.DownloadDirectoryPath}/${fileName}`;
       await RNFS.writeFile(destPath, csv, "utf8");
+      try {
+        await RNFS.scanFile(destPath);
+      } catch {}
       Alert.alert(
         "Exported",
         `CSV saved to ${Platform.OS === "android" ? "Downloads" : "Documents"} as ${fileName}.`,
       );
     } catch (error: any) {
-      Alert.alert("Error", error?.message || "Failed to export.");
+      // Direct write to Downloads failed (Android 11+ scoped storage).
+      // Fall back to app-external directory + share sheet.
+      try {
+        const fallbackPath = `${RNFS.ExternalDirectoryPath}/${fileName}`;
+        await RNFS.writeFile(fallbackPath, csv, "utf8");
+        await Share.open({
+          urls: [`file://${fallbackPath}`],
+          type: "text/csv",
+          failOnCancel: false,
+        });
+        Alert.alert(
+          "Exported",
+          "CSV saved. Use Save to Files from the share sheet to store it in Downloads.",
+        );
+      } catch (shareError: any) {
+        if (shareError?.message !== "User did not share") {
+          Alert.alert("Error", shareError?.message || "Failed to export.");
+        }
+      }
     }
   };
 
