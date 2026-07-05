@@ -7,12 +7,10 @@ import {
   TouchableOpacity,
   StyleSheet,
   SafeAreaView,
-  StatusBar,
   Image,
   Alert,
   KeyboardAvoidingView,
   Platform,
-  PermissionsAndroid,
 } from "react-native";
 import { launchImageLibrary } from "react-native-image-picker";
 import RNFS from "react-native-fs";
@@ -105,36 +103,9 @@ export default function ClinicProfileScreen() {
     }
   };
 
-  const pickAndSaveLogo = async () => {
-    // Android 11-12 need READ_EXTERNAL_STORAGE for the old gallery picker
-    if (Platform.OS === "android") {
-      const api = Platform.Version as number;
-      if (api >= 30 && api <= 32) {
-        try {
-          const granted = await PermissionsAndroid.request(
-            PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE,
-            {
-              title: "Storage Permission",
-              message: "VedaBill needs access to your photos to set a logo.",
-              buttonPositive: "Allow",
-              buttonNegative: "Deny",
-            },
-          );
-          if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
-            ~Alert.alert(
-              "Permission Required",
-              "Cannot pick a logo without storage permission.",
-            );
-            return;
-          }
-        } catch {
-          return;
-        }
-      }
-    }
-
+  const handlePickLogo = () => {
     launchImageLibrary(
-      { mediaType: "photo", quality: 0.8, includeBase64: true },
+      { mediaType: "photo", quality: 0.8 },
       async (response) => {
         if (response.didCancel) return;
         if (response.errorCode) {
@@ -148,34 +119,23 @@ export default function ClinicProfileScreen() {
         const uri = asset?.uri;
         if (!uri) return;
         try {
-          // Use base64 if provided (Android with ContentResolver)
-          if (asset.base64) {
-            const ext = asset.fileName?.split(".").pop() || "jpg";
-            const dest = `${RNFS.DocumentDirectoryPath}/clinic_logo.${ext}`;
-            await RNFS.writeFile(dest, asset.base64, "base64");
-            setForm((prev) => ({ ...prev, logoUri: `file://${dest}` }));
+          const ext = asset.fileName?.split(".").pop() || "jpg";
+          const dest = `${RNFS.DocumentDirectoryPath}/clinic_logo.${ext}`;
+          // Android 14+ returns content:// URIs; copyFile may fail with those.
+          // Read as base64 and write to ensure the file is persisted.
+          if (Platform.OS === "android" && uri.startsWith("content://")) {
+            const base64 = await RNFS.readFile(uri, "base64");
+            await RNFS.writeFile(dest, base64, "base64");
           } else {
-            // Fallback: fetch from content URI and write as base64
-            const resp = await fetch(uri);
-            const blob = await resp.blob();
-            const reader = new FileReader();
-            reader.onloadend = async () => {
-              const b64 = (reader.result as string).split(",")[1];
-              const dest = `${RNFS.DocumentDirectoryPath}/clinic_logo.jpg`;
-              await RNFS.writeFile(dest, b64, "base64");
-              setForm((prev) => ({ ...prev, logoUri: `file://${dest}` }));
-            };
-            reader.readAsDataURL(blob);
+            await RNFS.copyFile(uri, dest);
           }
-        } catch {
+          setForm((prev) => ({ ...prev, logoUri: `file://${dest}` }));
+        } catch (err) {
+          // Fallback: use original URI (may not persist on Android 14+)
           setForm((prev) => ({ ...prev, logoUri: uri }));
         }
       },
     );
-  };
-
-  const handlePickLogo = () => {
-    pickAndSaveLogo();
   };
 
   return (

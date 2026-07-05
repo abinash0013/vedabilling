@@ -65,6 +65,7 @@ async function initTables(database: SQLite.SQLiteDatabase): Promise<void> {
       name TEXT NOT NULL,
       unit_price REAL NOT NULL DEFAULT 0,
       qty INTEGER NOT NULL DEFAULT 1,
+      unit TEXT NOT NULL DEFAULT '',
       FOREIGN KEY (invoice_id) REFERENCES invoices(id)
     )
   `);
@@ -219,9 +220,9 @@ export async function insertInvoice(invoice: Invoice): Promise<void> {
   if (invoice.items) {
     for (const item of invoice.items) {
       await database.executeSql(
-        `INSERT INTO invoice_items (invoice_id, name, unit_price, qty)
-         VALUES (?, ?, ?, ?)`,
-        [invoice.id, item.name || '', item.unitPrice || 0, item.qty || 1],
+        `INSERT INTO invoice_items (invoice_id, name, unit_price, qty, unit)
+         VALUES (?, ?, ?, ?, ?)`,
+        [invoice.id, item.name || '', item.unitPrice || 0, item.qty || 1, item.unit || ''],
       );
     }
   }
@@ -314,7 +315,7 @@ export async function getFullInvoice(id: string): Promise<Invoice | null> {
   const items: InvoiceItem[] = [];
   for (let i = 0; i < itemResults.rows.length; i++) {
     const ir = itemResults.rows.item(i);
-    items.push({name: ir.name, unitPrice: ir.unit_price, qty: ir.qty});
+    items.push({name: ir.name, unitPrice: ir.unit_price, qty: ir.qty, unit: ir.unit || ''});
   }
 
   const [payResults] = await database.executeSql(

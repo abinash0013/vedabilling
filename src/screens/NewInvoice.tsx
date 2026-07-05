@@ -33,15 +33,13 @@ const BILLING_TYPES = ['Per-Visit', 'Weekly', 'Package'];
 
 const SERVICE_TAGS = [
   'Cupping',
-  'Other Therapy',
   'Initial Consultation',
   'Online Consultation',
-  'Daily / Per-Session Visit',
+  'Per-Session Visit',
   '10-Visit Package',
   '15-Visit Package',
   '21-Visit Package',
   '30-Visit Package',
-  'Home Physiotherapy Rehabilitation',
   'Home Rehab',
   'Consultation Fee',
   'Package Payment',
@@ -63,9 +61,25 @@ const SERVICE_PRICES: Record<string, string> = {
   'Package Payment': '0',
 };
 
+const UNIT_TAGS = [
+  'Session',
+  'Visit',
+  'Package',
+  'Month',
+  'Week',
+  'Day',
+  'Hour',
+];
+
 const PAYMENT_METHODS = ['Cash', 'UPI', 'Card', 'Bank Transfer', 'Cheque'];
 
-const STATUS_OPTIONS = ['Due', 'Advance Paid', 'Partial Paid', 'Over Paid'];
+const STATUS_OPTIONS = [
+  'Due',
+  'Paid',
+  'Advance Paid',
+  'Partial Paid',
+  'Over Paid',
+];
 
 const formatDateString = (d: Date) => {
   const dd = String(d.getDate()).padStart(2, '0');
@@ -220,11 +234,8 @@ export default function NewInvoiceStep2({navigation, route}: any) {
   const [selectedPatient, setSelectedPatient] = useState(paramsPatient || null);
   const [billingType, setBillingType] = useState('Per-Visit');
   const [items, setItems] = useState<
-    {name: string; amount: string; qty: string}[]
-  >([
-    {name: 'Cupping', amount: '500', qty: '1'},
-    {name: 'Other Therapy', amount: '800', qty: '1'},
-  ]);
+    {name: string; amount: string; qty: string; unit: string}[]
+  >([{name: 'Home Rehab', amount: '1000', qty: '1', unit: 'Session'}]);
   const [customTag, setCustomTag] = useState('');
   const [discount, setDiscount] = useState('0');
   const [payments, setPayments] = useState([{amount: '0', method: 'Cash'}]);
@@ -249,7 +260,8 @@ export default function NewInvoiceStep2({navigation, route}: any) {
   const getStatus = () => {
     if (totalPaid === 0) return 'Due';
     if (totalPaid >= payable) return 'Over Paid';
-    if (billingType === 'Package') return 'Advance Paid';
+    if (billingType === 'Package') return 'Advance';
+    if (totalPaid === totalAmount) return 'Paid'; //
     return 'Partial Paid';
   };
 
@@ -267,6 +279,7 @@ export default function NewInvoiceStep2({navigation, route}: any) {
       name: it.name,
       unitPrice: parseInt(it.amount) || 0,
       qty: parseInt(it.qty) || 1,
+      unit: it.unit || '',
     })),
     total: totalAmount,
     discount: parseInt(discount) || 0,
@@ -362,8 +375,8 @@ export default function NewInvoiceStep2({navigation, route}: any) {
           name: it.name,
           unitPrice: parseInt(it.amount) || 0,
           qty: parseInt(it.qty) || 1,
-          amount:
-            (parseInt(it.amount) || 0) * (parseInt(it.qty) || 1),
+          unit: it.unit || '',
+          amount: (parseInt(it.amount) || 0) * (parseInt(it.qty) || 1),
         })),
       },
       amount: {
@@ -384,7 +397,7 @@ export default function NewInvoiceStep2({navigation, route}: any) {
 
   const addItem = (name: string) => {
     const price = SERVICE_PRICES[name] || '0';
-    setItems([...items, {name, amount: price, qty: '1'}]);
+    setItems([...items, {name, amount: price, qty: '1', unit: 'Session'}]);
   };
 
   const removeItem = (idx: number) => {
@@ -398,7 +411,7 @@ export default function NewInvoiceStep2({navigation, route}: any) {
   const addCustomItem = () => {
     const t = customTag.trim();
     if (t) {
-      setItems([...items, {name: t, amount: '0', qty: '1'}]);
+      setItems([...items, {name: t, amount: '0', qty: '1', unit: 'Session'}]);
       setCustomTag('');
     }
   };
@@ -452,8 +465,9 @@ export default function NewInvoiceStep2({navigation, route}: any) {
               <Text style={styles.avatarSmallText}>
                 {selectedPatient
                   ? (() => {
-                      const p =
-                        (selectedPatient.name || '').trim().split(/\s+/);
+                      const p = (selectedPatient.name || '')
+                        .trim()
+                        .split(/\s+/);
                       return p.length > 1
                         ? (p[0][0] || '') + (p[p.length - 1][0] || '')
                         : p[0]?.[0] || '?';
@@ -594,35 +608,49 @@ export default function NewInvoiceStep2({navigation, route}: any) {
 
             {/* Item list */}
             {items.map((item, idx) => (
-              <View key={idx} style={styles.itemRow}>
-                <TextInput
-                  style={[styles.input, styles.itemNameInput]}
-                  value={item.name}
-                  onChangeText={v => updateItem(idx, 'name', v)}
-                  placeholderTextColor={COLORS.placeholder}
-                />
-                <TextInput
-                  style={[styles.input, styles.itemQtyInput]}
-                  value={item.qty}
-                  onChangeText={v => updateItem(idx, 'qty', v)}
-                  keyboardType="numeric"
-                  placeholderTextColor={COLORS.placeholder}
-                />
-                <View style={styles.itemAmountWrapper}>
+              <View key={idx} style={styles.itemCard}>
+                <View style={styles.itemRow}>
                   <TextInput
-                    style={[styles.input, styles.itemAmountInput]}
-                    value={item.amount}
-                    onChangeText={v => updateItem(idx, 'amount', v)}
-                    keyboardType="numeric"
+                    style={[styles.input, styles.itemNameInput]}
+                    value={item.name}
+                    onChangeText={v => updateItem(idx, 'name', v)}
                     placeholderTextColor={COLORS.placeholder}
                   />
+                  <TouchableOpacity
+                    style={styles.removeBtn}
+                    onPress={() => removeItem(idx)}
+                    activeOpacity={0.8}>
+                    <Text style={styles.removeBtnText}>✕</Text>
+                  </TouchableOpacity>
                 </View>
-                <TouchableOpacity
-                  style={styles.removeBtn}
-                  onPress={() => removeItem(idx)}
-                  activeOpacity={0.8}>
-                  <Text style={styles.removeBtnText}>✕</Text>
-                </TouchableOpacity>
+                <View style={styles.itemMetaRow}>
+                  <TextInput
+                    style={[styles.input, styles.itemQtyInput]}
+                    value={item.qty}
+                    onChangeText={v => updateItem(idx, 'qty', v)}
+                    keyboardType="numeric"
+                    placeholder="Qty"
+                    placeholderTextColor={COLORS.placeholder}
+                  />
+                  <TextInput
+                    style={[styles.input, styles.itemUnitInput]}
+                    value={item.unit}
+                    onChangeText={v => updateItem(idx, 'unit', v)}
+                    placeholder="Unit"
+                    keyboardType="default"
+                    placeholderTextColor={COLORS.placeholder}
+                  />
+                  <View style={styles.itemAmountWrapper}>
+                    <TextInput
+                      style={[styles.input, styles.itemAmountInput]}
+                      value={item.amount}
+                      onChangeText={v => updateItem(idx, 'amount', v)}
+                      keyboardType="numeric"
+                      placeholder="Amount"
+                      placeholderTextColor={COLORS.placeholder}
+                    />
+                  </View>
+                </View>
               </View>
             ))}
           </View>
@@ -1035,10 +1063,20 @@ const styles = StyleSheet.create({
   },
   addTagBtnText: {fontSize: 13, fontWeight: '700', color: COLORS.teal},
 
-  // Item row
+  // Item card
+  itemCard: {
+    backgroundColor: COLORS.card,
+    borderRadius: 12,
+    padding: 10,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
   itemRow: {flexDirection: 'row', gap: 8, alignItems: 'center'},
-  itemNameInput: {flex: 2},
-  itemQtyInput: {width: 48, textAlign: 'center'},
+  itemNameInput: {flex: 1},
+  itemMetaRow: {flexDirection: 'row', gap: 8, alignItems: 'center'},
+  itemQtyInput: {width: 100, textAlign: 'center'},
+  itemUnitInput: {width: 100, textAlign: 'center'},
   itemAmountWrapper: {flex: 1},
   itemAmountInput: {textAlign: 'right'},
 

@@ -109,7 +109,7 @@ export default function ReviewInvoiceScreen({navigation, route}: any) {
         '.label{font-size:11px;font-weight:800;color:#FFF;letter-spacing:1px}',
         '.inv-no{font-size:12px;font-weight:700;color:rgba(255,255,255,0.85)}',
         '.dates{padding:12px 16px;display:flex;justify-content:space-between;border-bottom:1px solid #E2EDEB}',
-        '.date-text{font-size:12px;color:#7A9490}',
+        '.date-text{font-size:12px;color:#1A2E2B}',
         '.patient-box{margin:12px;background:#F0F7F6;border-radius:10px;padding:12px}',
         '.patient-name{font-size:15px;font-weight:800;color:#1A2E2B;margin:0}',
         '.patient-id{font-size:12px;color:#7A9490;margin:3px 0 0}',
@@ -140,9 +140,9 @@ export default function ReviewInvoiceScreen({navigation, route}: any) {
         '<div class="clinic-hdr">',
         '<div class="logo">' + logoHtml + '</div>',
         '<div class="clinic-info">',
-        '<p class="clinic-name">VedaMotion Care</p>',
-        '<p class="tagline">Where Every Move Heals</p>',
-        '<p class="contact">+91 8875115254 · vedamotioncare@gmail.com ·<br>www.vedamotioncare.in</p>',
+        '<p class="clinic-name">' + (clinicSettings?.clinicName || 'VedaMotion Care') + '</p>',
+        '<p class="tagline">' + (clinicSettings?.tagline || 'Where Every Move Heals') + '</p>',
+        '<p class="contact">' + (clinicSettings?.phone || '+91 8875115254') + ' · ' + (clinicSettings?.email || 'vedamotioncare@gmail.com') + ' ·<br>' + (clinicSettings?.website || 'www.vedamotioncare.in') + '</p>',
         '</div></div>',
 
         // E-Bill label row
@@ -159,37 +159,35 @@ export default function ReviewInvoiceScreen({navigation, route}: any) {
         '<div class="patient-box">',
         '<p class="patient-name">' + patient.name + '</p>',
         '<p class="patient-id">Patient ID: ' + patient.reg + '</p>',
-        '<p class="patient-id" style="margin-top:3px">' +
+        '<p class="patient-id" style="margin-top:3px">Treating Physiotherapist: ' +
           (therapist || 'Dr. Yash Pratihasta, PT') +
           '</p></div>',
 
         // Service items table
         '<table><tr>',
-        '<th style="width:40%">DESCRIPTION</th>',
+        '<th style="width:46%">DESCRIPTION</th>',
         '<th class="center" style="width:15%">QTY</th>',
-        '<th class="center" style="width:20%">TYPE</th>',
-        '<th class="amt-cell" style="width:25%">AMOUNT</th>',
+        '<th class="center" style="width:15%">UNIT</th>',
+        '<th class="amt-cell" style="width:24%">AMOUNT</th>',
         '</tr>' +
-          (billing.items && billing.items.length > 0
+              (billing.items && billing.items.length > 0
             ? billing.items
                 .map(
                   (it: any) =>
-                    `<tr><td style="width:40%">${
+                    `<tr><td style="width:46%">${
                       it.name
                     }</td><td class="center" style="width:15%;color:#7A9490">${
-                      it.qty || 1
-                    }</td><td class="center" style="width:20%;color:#7A9490">${
-                      billing.type
-                    }</td><td class="amt-cell" style="width:25%">${fmt(
+                      it.qty || ''
+                    }</td><td class="center" style="width:15%;color:#7A9490">${
+                      it.unit || ''
+                    }</td><td class="amt-cell" style="width:24%">${fmt(
                       it.amount,
                     )}</td></tr>`,
                 )
                 .join('')
-            : `<tr><td style="width:40%">${
+            : `<tr><td style="width:46%">${
                 billing.service
-              }</td><td class="center" style="width:15%;color:#7A9490">1</td><td class="center" style="width:20%;color:#7A9490">${
-                billing.type
-              }</td><td class="amt-cell" style="width:25%">${fmt(
+              }</td><td class="center" style="width:15%;color:#7A9490"></td><td class="center" style="width:15%;color:#7A9490"></td><td class="amt-cell" style="width:24%">${fmt(
                 amount.total,
               )}</td></tr>`) +
           '</table>',
@@ -239,7 +237,7 @@ export default function ReviewInvoiceScreen({navigation, route}: any) {
         '</div>',
 
         // Footer
-        '<div class="footer">VedaMotion Care · Service & Payment Policy applies · Where Every Move Heals</div>',
+        '<div class="footer">' + (clinicSettings?.clinicName || 'VedaMotion Care') + ' · Service & Payment Policy applies · ' + (clinicSettings?.tagline || 'Where Every Move Heals') + '</div>',
 
         '</div></body></html>',
       ].join('');
@@ -352,7 +350,7 @@ export default function ReviewInvoiceScreen({navigation, route}: any) {
           ).map((it: any, idx: number) => (
             <Row
               key={idx}
-              label={`${it.name}${it.qty ? ` × ${it.qty}` : ''}`}
+              label={`${it.name}${it.qty && it.qty > 0 ? ` × ${it.qty}${it.unit ? ` ${it.unit}` : ''}` : ''}`}
               value={`₹${(it.amount || 0).toLocaleString('en-IN')}`}
               dimLabel
             />

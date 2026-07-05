@@ -92,6 +92,7 @@ export default function InvoiceListScreen() {
             name: i.name,
             unitPrice: i.unitPrice,
             qty: i.qty,
+            unit: i.unit || '',
             amount: i.unitPrice * i.qty,
           })),
         },
