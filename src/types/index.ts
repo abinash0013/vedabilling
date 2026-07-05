@@ -12,6 +12,7 @@ export interface NewPatientInput {
   name: string;
   phone: string;
   address: string;
+  reg?: string;
 }
 
 export interface InvoiceItem {
@@ -44,6 +45,7 @@ export interface Invoice {
   balanceDue: number;
   status: string;
   note: string;
+  pdfPath?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -51,10 +53,12 @@ export interface Invoice {
 export interface InvoiceSummary {
   id: string;
   name: string;
+  reg: string;
   invoice: string;
   type: string;
   amount: string;
   status: string;
+  date: string;
 }
 
 export interface PatientListItem {

@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useState, useEffect} from 'react';
 import {
   View,
   Text,
@@ -8,27 +8,17 @@ import {
   SafeAreaView,
   StatusBar,
   Alert,
+  Image,
 } from 'react-native';
 import RNHTMLtoPDF from 'react-native-html-to-pdf';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import {updateInvoicePdfPath, getClinicSettings} from '../database';
+
+import BASE from '../constants/colors';
 
 const COLORS = {
-  teal: '#2E7D72',
-  tealDark: '#1F5C56',
-  tealLight: '#D6EAE7',
-  bg: '#EFF5F4',
-  card: '#FFFFFF',
-  placeholder: '#AABFBC',
-  textPrimary: '#1A2E2B',
-  textSecondary: '#7A9490',
-  textMuted: '#9AAFAC',
+  ...BASE,
   border: '#E8F0EF',
-  dashed: '#C8DEDA',
-  amber: '#A07820',
-  amberBg: '#FEF8EC',
-  amberBorder: '#D4A82A',
-  headerText: '#FFFFFF',
-  headerSub: 'rgba(255,255,255,0.75)',
   tealBg: '#EBF4F2',
 };
 
@@ -84,6 +74,17 @@ export default function ReviewInvoiceScreen({navigation, route}: any) {
       status: 'Pending',
     },
   };
+  const [clinicSettings, setClinicSettings] = useState<any>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const settings = await getClinicSettings();
+        setClinicSettings(settings);
+      } catch {}
+    })();
+  }, []);
+
   const handleEdit = () => {
     navigation.goBack();
   };
@@ -91,17 +92,9 @@ export default function ReviewInvoiceScreen({navigation, route}: any) {
   const handleGenerate = async () => {
     try {
       const fmt = (n: number) => '\u20B9' + Number(n).toLocaleString('en-IN');
-      const paymentsHtml = (amount.payments || [])
-        .map(
-          (p: any) =>
-            `<tr><td style="padding:8px 12px;color:#7A9490;font-size:13px">Paid — ${
-              p.method
-            }</td><td style="padding:8px 12px;text-align:right;font-size:13px;color:#1A2E2B">${fmt(
-              p.amount,
-            )}</td></tr>`,
-        )
-        .join('');
-
+      const logoHtml = clinicSettings?.logoUri
+        ? `<img src="${clinicSettings.logoUri}" style="width:52px;height:52px;border-radius:12px;object-fit:cover" />`
+        : '🌿';
       const h = [
         '<html><head><style>',
         'body{font-family:Helvetica Neue,Helvetica,Arial,sans-serif;margin:0;padding:0;color:#1A2E2B;background:#EFF5F4}',
@@ -145,7 +138,7 @@ export default function ReviewInvoiceScreen({navigation, route}: any) {
 
         // Clinic header
         '<div class="clinic-hdr">',
-        '<div class="logo">🌿</div>',
+        '<div class="logo">' + logoHtml + '</div>',
         '<div class="clinic-info">',
         '<p class="clinic-name">VedaMotion Care</p>',
         '<p class="tagline">Where Every Move Heals</p>',
@@ -173,7 +166,7 @@ export default function ReviewInvoiceScreen({navigation, route}: any) {
         // Service items table
         '<table><tr>',
         '<th style="width:40%">DESCRIPTION</th>',
-        '<th class="center" style="width:15%">UNIT</th>',
+        '<th class="center" style="width:15%">QTY</th>',
         '<th class="center" style="width:20%">TYPE</th>',
         '<th class="amt-cell" style="width:25%">AMOUNT</th>',
         '</tr>' +
@@ -215,7 +208,6 @@ export default function ReviewInvoiceScreen({navigation, route}: any) {
         '<div class="amt-row"><span class="amt-bold">Payable Amount</span><span class="amt-bold">' +
           fmt(amount.payable) +
           '</span></div>',
-        paymentsHtml,
         '<div class="amt-row"><span class="amt-label">Total Paid</span><span class="amt-val">' +
           fmt(amount.totalPaid) +
           '</span></div>',
@@ -274,6 +266,11 @@ export default function ReviewInvoiceScreen({navigation, route}: any) {
           savedAt: new Date().toISOString(),
         });
         await AsyncStorage.setItem('invoices', JSON.stringify(list));
+      } catch {
+        // silent
+      }
+      try {
+        await updateInvoicePdfPath(billing.invoiceNo, pdf.filePath);
       } catch {
         // silent
       }

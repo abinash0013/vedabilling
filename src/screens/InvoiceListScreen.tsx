@@ -7,19 +7,14 @@ import {
   StyleSheet,
   SafeAreaView,
   StatusBar,
+  Alert,
 } from 'react-native';
-import {useFocusEffect} from '@react-navigation/native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import {useFocusEffect, useNavigation} from '@react-navigation/native';
+import {getAllInvoices, getFullInvoice} from '../database';
+import type {InvoiceSummary} from '../types';
+import BASE from '../constants/colors';
 
-const COLORS = {
-  teal: '#2E7D72',
-  tealLight: '#D6EAE7',
-  bg: '#EFF5F4',
-  card: '#FFFFFF',
-  textPrimary: '#1A2E2B',
-  textSecondary: '#7A9490',
-  border: '#E2EDEB',
-};
+const COLORS = BASE;
 
 const STATUS_COLORS: Record<string, string> = {
   'Advance Paid': '#2E7D72',
@@ -29,26 +24,38 @@ const STATUS_COLORS: Record<string, string> = {
   Overpaid: '#9B59B6',
 };
 
-function InvoiceRow({item, isLast}: any) {
+function InvoiceRow({
+  item,
+  isLast,
+  onPress,
+}: {
+  item: InvoiceSummary;
+  isLast: boolean;
+  onPress: () => void;
+}) {
   const statusColor = STATUS_COLORS[item.status] || '#7A9490';
   return (
-    <View style={[styles.row, isLast && styles.rowLast]}>
+    <TouchableOpacity
+      activeOpacity={0.7}
+      style={[styles.row, isLast && styles.rowLast]}
+      onPress={onPress}>
       <View style={styles.rowInfo}>
-        <Text style={styles.invoiceNo}>{item.invoiceNo}</Text>
-        <Text style={styles.patientName}>{item.patientName}</Text>
+        <Text style={styles.invoiceNo}>{item.invoice}</Text>
+        <Text style={styles.patientName}>{item.name}</Text>
         <Text style={styles.meta}>
-          {item.date} · ₹{item.payable?.toLocaleString('en-IN')}
+          {item.date} · {item.amount}
         </Text>
       </View>
       <View style={[styles.badge, {backgroundColor: statusColor}]}>
         <Text style={styles.badgeText}>{item.status}</Text>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 }
 
 export default function InvoiceListScreen() {
-  const [invoices, setInvoices] = useState<any[]>([]);
+  const navigation = useNavigation<any>();
+  const [invoices, setInvoices] = useState<InvoiceSummary[]>([]);
 
   useFocusEffect(
     useCallback(() => {
@@ -58,28 +65,74 @@ export default function InvoiceListScreen() {
 
   const loadInvoices = async () => {
     try {
-      const raw = await AsyncStorage.getItem('invoices');
-      if (raw) {
-        setInvoices(JSON.parse(raw));
-      }
+      const data = await getAllInvoices();
+      setInvoices(data);
     } catch {
       setInvoices([]);
     }
   };
 
+  const openInvoice = async (item: InvoiceSummary) => {
+    try {
+      const inv = await getFullInvoice(item.id);
+      if (!inv) {
+        Alert.alert('Error', 'Invoice data not found.');
+        return;
+      }
+      navigation.navigate('EBillGenerated', {
+        pdfPath: inv.pdfPath || '',
+        patient: {name: inv.patientName, reg: inv.patientReg},
+        billing: {
+          invoiceNo: inv.invoiceNo,
+          date: inv.invoiceDate,
+          due: inv.dueDate,
+          type: inv.billingType,
+          service: inv.items.map(i => i.name).join(' + ') || '—',
+          items: inv.items.map(i => ({
+            name: i.name,
+            unitPrice: i.unitPrice,
+            qty: i.qty,
+            amount: i.unitPrice * i.qty,
+          })),
+        },
+        amount: {
+          total: inv.total,
+          discount: inv.discount,
+          payable: inv.payable,
+          payments: inv.payments.map(p => ({
+            amount: p.amount,
+            method: p.method,
+          })),
+          totalPaid: inv.totalPaid,
+          extraPaid: inv.extraPaid,
+          balanceDue: inv.balanceDue,
+          status: inv.status,
+        },
+        note: inv.note,
+        therapist: inv.therapist,
+      });
+    } catch {
+      Alert.alert('Error', 'Failed to load invoice.');
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safe}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.bg} />
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.teal} />
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Invoices</Text>
         <Text style={styles.headerSub}>{invoices.length} total</Text>
       </View>
       <FlatList
         data={invoices}
-        keyExtractor={(_: any, i: number) => String(i)}
+        keyExtractor={(item: InvoiceSummary) => item.id}
         contentContainerStyle={styles.list}
         renderItem={({item, index}) => (
-          <InvoiceRow item={item} isLast={index === invoices.length - 1} />
+          <InvoiceRow
+            item={item}
+            isLast={index === invoices.length - 1}
+            onPress={() => openInvoice(item)}
+          />
         )}
         ListEmptyComponent={
           <View style={styles.empty}>
@@ -94,19 +147,21 @@ export default function InvoiceListScreen() {
 const styles = StyleSheet.create({
   safe: {flex: 1, backgroundColor: COLORS.bg},
   header: {
+    backgroundColor: COLORS.teal,
     paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 12,
+    paddingTop: 12,
+    paddingBottom: 20,
   },
   headerTitle: {
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: '800',
-    color: COLORS.textPrimary,
+    color: COLORS.headerText,
     letterSpacing: -0.5,
   },
-  headerSub: {fontSize: 14, color: COLORS.textSecondary, marginTop: 2},
+  headerSub: {fontSize: 14, color: COLORS.headerSub, marginTop: 3},
   list: {
     paddingHorizontal: 16,
+    paddingTop: 12,
     paddingBottom: 20,
     gap: 1,
   },
@@ -128,7 +183,7 @@ const styles = StyleSheet.create({
   },
   rowLast: {},
   rowInfo: {flex: 1},
-  invoiceNo: {fontSize: 15, fontWeight: '700', color: COLORS.textPrimary},
+  invoiceNo: {fontSize: 15, fontWeight: '700', color: COLORS.teal},
   patientName: {fontSize: 13, color: COLORS.textSecondary, marginTop: 2},
   meta: {fontSize: 12, color: COLORS.textSecondary, marginTop: 2},
   badge: {

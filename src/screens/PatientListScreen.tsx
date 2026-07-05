@@ -17,27 +17,22 @@ import {useNavigation, useFocusEffect} from '@react-navigation/native';
 import {getAllPatients, insertPatient} from '../database';
 import type {PatientListItem, NewPatientInput} from '../types';
 
-const COLORS = {
-  teal: '#2E7D72',
-  tealLight: '#D6EAE7',
-  tealDark: '#1F5C56',
-  bg: '#EFF5F4',
-  card: '#FFFFFF',
-  textPrimary: '#1A2E2B',
-  textSecondary: '#7A9490',
-  border: '#E2EDEB',
-  inputBg: '#F5F9F8',
-  headerText: '#FFFFFF',
-  headerSub: 'rgba(255,255,255,0.75)',
-  plusBtn: 'rgba(255,255,255,0.25)',
-};
+import BASE from '../constants/colors';
+
+const PLUS_BTN = 'rgba(255,255,255,0.25)';
+const COLORS = BASE;
 
 
 
-function Avatar({initials}: any) {
+function Avatar({name}: any) {
+  const parts = (name || '').trim().split(/\s+/);
+  const initials =
+    parts.length > 1
+      ? (parts[0][0] || '') + (parts[parts.length - 1][0] || '')
+      : parts[0]?.[0] || '?';
   return (
     <View style={styles.avatar}>
-      <Text style={styles.avatarText}>{initials}</Text>
+      <Text style={styles.avatarText}>{initials.toUpperCase()}</Text>
     </View>
   );
 }
@@ -48,7 +43,7 @@ function PatientRow({item, isLast, onPress}: any) {
       activeOpacity={0.7}
       style={[styles.row, isLast && styles.rowLast]}
       onPress={onPress}>
-      <Avatar initials={item.id} />
+      <Avatar name={item.name} />
       <View style={styles.rowInfo}>
         <Text style={styles.patientName}>{item.name}</Text>
         <Text style={styles.patientMeta}>
@@ -68,6 +63,7 @@ export default function PatientsScreen() {
   const [newName, setNewName] = useState('');
   const [newPhone, setNewPhone] = useState('');
   const [newAddress, setNewAddress] = useState('');
+  const [newRegNumber, setNewRegNumber] = useState('');
 
   const loadPatients = useCallback(async () => {
     try {
@@ -94,16 +90,26 @@ export default function PatientsScreen() {
       Alert.alert('Error', 'Please enter a patient name.');
       return;
     }
+    const phoneDigits = newPhone.replace(/\D/g, '');
+    if (newPhone.trim() && phoneDigits.length !== 10) {
+      Alert.alert('Error', 'Phone number must be exactly 10 digits.');
+      return;
+    }
     try {
+      const reg = newRegNumber.trim()
+        ? `VMCPTREG-${newRegNumber.trim()}`
+        : undefined;
       await insertPatient({
         name: trimmed,
         phone: newPhone.trim(),
         address: newAddress.trim(),
+        reg,
       });
       await loadPatients();
       setNewName('');
       setNewPhone('');
       setNewAddress('');
+      setNewRegNumber('');
       setModalVisible(false);
     } catch (error: any) {
       Alert.alert('Error', error?.message || 'Failed to add patient.');
@@ -182,13 +188,25 @@ export default function PatientsScreen() {
               onChangeText={setNewName}
               autoFocus
             />
+            <View style={styles.regRow}>
+              <Text style={styles.regPrefix}>VMCPTREG-</Text>
+              <TextInput
+                style={[styles.modalInput, styles.regInput]}
+                placeholder="1234"
+                placeholderTextColor={COLORS.textSecondary}
+                value={newRegNumber}
+                onChangeText={setNewRegNumber}
+                keyboardType="number-pad"
+              />
+            </View>
             <TextInput
               style={styles.modalInput}
-              placeholder="Phone number"
+              placeholder="Phone number (10 digits)"
               placeholderTextColor={COLORS.textSecondary}
               value={newPhone}
               onChangeText={setNewPhone}
               keyboardType="phone-pad"
+              maxLength={10}
             />
             <TextInput
               style={styles.modalInput}
@@ -248,7 +266,7 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 21,
-    backgroundColor: COLORS.plusBtn,
+    backgroundColor: PLUS_BTN,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -354,6 +372,22 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     paddingVertical: 24,
     fontSize: 14,
+  },
+
+  // Reg row
+  regRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  regPrefix: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: COLORS.textSecondary,
+    paddingVertical: 12,
+  },
+  regInput: {
+    flex: 1,
   },
 
   // Modal

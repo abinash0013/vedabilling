@@ -16,30 +16,16 @@ import {
 import RNFS from 'react-native-fs';
 import {insertInvoice} from '../database';
 
+import BASE from '../constants/colors';
+
 const COLORS = {
-  teal: '#2E7D72',
-  tealDark: '#1F5C56',
-  tealLight: '#D6EAE7',
+  ...BASE,
   tealBg: '#EBF4F2',
-  bg: '#EFF5F4',
-  card: '#FFFFFF',
-  textPrimary: '#1A2E2B',
-  textSecondary: '#7A9490',
-  label: '#5A8A84',
-  sectionLabel: '#2E7D72',
-  border: '#E2EDEB',
   inputBg: '#FFFFFF',
   disabledBg: '#F0F5F4',
-  placeholder: '#AABFBC',
-  red: '#C0392B',
-  redLight: '#FDECEB',
-  headerText: '#FFFFFF',
   headerSub: 'rgba(255,255,255,0.7)',
   stepActive: '#2E7D72',
   stepInactive: '#B0C8C4',
-  green: '#27AE60',
-  greenLight: '#E8F5EC',
-  amber: '#E67E22',
   amberLight: '#FEF3E2',
 };
 
@@ -333,6 +319,69 @@ export default function NewInvoiceStep2({navigation, route}: any) {
     }
   };
 
+  const handlePreview = async () => {
+    const data = buildInvoiceData();
+    try {
+      await insertInvoice({
+        id: data.id,
+        invoiceNo: data.invoiceNo,
+        invoiceDate: data.invoiceDate,
+        dueDate: data.dueDate,
+        therapist: data.therapist,
+        patientReg: data.patient.reg,
+        patientName: data.patient.name,
+        billingType: data.billingType,
+        items: data.items,
+        total: data.total,
+        discount: data.discount,
+        payable: data.payable,
+        payments: data.payments,
+        totalPaid: data.totalPaid,
+        extraPaid: data.extraPaid,
+        balanceDue: data.balanceDue,
+        status: data.status,
+        note: data.note,
+        createdAt: data.createdAt,
+        updatedAt: data.createdAt,
+      });
+    } catch {}
+    navigation.navigate('PreviewInvoice', {
+      note,
+      therapist,
+      patient: selectedPatient || {
+        name: 'New Patient',
+        reg: 'VMCPTREG-0157',
+      },
+      billing: {
+        invoiceNo,
+        date: invoiceDate,
+        due: dueDate,
+        type: billingType,
+        service: description,
+        items: items.map(it => ({
+          name: it.name,
+          unitPrice: parseInt(it.amount) || 0,
+          qty: parseInt(it.qty) || 1,
+          amount:
+            (parseInt(it.amount) || 0) * (parseInt(it.qty) || 1),
+        })),
+      },
+      amount: {
+        total: totalAmount,
+        discount: parseInt(discount) || 0,
+        payable,
+        payments: payments.map(p => ({
+          amount: parseInt(p.amount) || 0,
+          method: p.method,
+        })),
+        totalPaid,
+        extraPaid,
+        balanceDue,
+        status: paymentStatus || getStatus(),
+      },
+    });
+  };
+
   const addItem = (name: string) => {
     const price = SERVICE_PRICES[name] || '0';
     setItems([...items, {name, amount: price, qty: '1'}]);
@@ -401,7 +450,15 @@ export default function NewInvoiceStep2({navigation, route}: any) {
           <View style={styles.patientCard}>
             <View style={styles.avatarSmall}>
               <Text style={styles.avatarSmallText}>
-                {selectedPatient ? selectedPatient.id?.slice(0, 2) : 'NP'}
+                {selectedPatient
+                  ? (() => {
+                      const p =
+                        (selectedPatient.name || '').trim().split(/\s+/);
+                      return p.length > 1
+                        ? (p[0][0] || '') + (p[p.length - 1][0] || '')
+                        : p[0]?.[0] || '?';
+                    })().toUpperCase()
+                  : 'NP'}
               </Text>
             </View>
             <View style={styles.patientInfo}>
@@ -765,43 +822,7 @@ export default function NewInvoiceStep2({navigation, route}: any) {
             <TouchableOpacity
               style={styles.shareBtn}
               activeOpacity={0.85}
-              onPress={() =>
-                navigation.navigate('PreviewInvoice', {
-                  note,
-                  therapist,
-                  patient: selectedPatient || {
-                    name: 'New Patient',
-                    reg: 'VMCPTREG-0157',
-                  },
-                  billing: {
-                    invoiceNo,
-                    date: invoiceDate,
-                    due: dueDate,
-                    type: billingType,
-                    service: description,
-                    items: items.map(it => ({
-                      name: it.name,
-                      unitPrice: parseInt(it.amount) || 0,
-                      qty: parseInt(it.qty) || 1,
-                      amount:
-                        (parseInt(it.amount) || 0) * (parseInt(it.qty) || 1),
-                    })),
-                  },
-                  amount: {
-                    total: totalAmount,
-                    discount: parseInt(discount) || 0,
-                    payable,
-                    payments: payments.map(p => ({
-                      amount: parseInt(p.amount) || 0,
-                      method: p.method,
-                    })),
-                    totalPaid,
-                    extraPaid,
-                    balanceDue,
-                    status: paymentStatus || getStatus(),
-                  },
-                })
-              }>
+              onPress={handlePreview}>
               <Text style={styles.shareBtnText}>Preview & Share</Text>
             </TouchableOpacity>
           </View>

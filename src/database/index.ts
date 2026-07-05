@@ -52,6 +52,7 @@ async function initTables(database: SQLite.SQLiteDatabase): Promise<void> {
       balance_due REAL NOT NULL DEFAULT 0,
       status TEXT NOT NULL DEFAULT 'Due',
       note TEXT DEFAULT '',
+      pdf_path TEXT DEFAULT '',
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
       FOREIGN KEY (patient_reg) REFERENCES patients(reg)
@@ -102,7 +103,7 @@ export async function closeDatabase(): Promise<void> {
 
 export async function insertPatient(input: NewPatientInput): Promise<Patient> {
   const database = await getDatabase();
-  const reg = `VMCPTREG-${String(Date.now()).slice(-4)}`;
+  const reg = input.reg || `VMCPTREG-${String(Date.now()).slice(-4)}`;
   const id = (input.name || '')
     .split(' ')
     .map((w: string) => w[0])
@@ -190,8 +191,8 @@ export async function insertInvoice(invoice: Invoice): Promise<void> {
     `INSERT OR REPLACE INTO invoices
       (id, invoice_no, invoice_date, due_date, therapist, patient_reg, patient_name,
        billing_type, total, discount, payable, total_paid, extra_paid, balance_due,
-       status, note, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       status, note, pdf_path, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       invoice.id || '',
       invoice.invoiceNo || '',
@@ -209,6 +210,7 @@ export async function insertInvoice(invoice: Invoice): Promise<void> {
       invoice.balanceDue || 0,
       invoice.status || 'Due',
       invoice.note || '',
+      invoice.pdfPath || '',
       invoice.createdAt || now,
       invoice.updatedAt || now,
     ],
@@ -238,7 +240,7 @@ export async function insertInvoice(invoice: Invoice): Promise<void> {
 export async function getAllInvoices(): Promise<InvoiceSummary[]> {
   const database = await getDatabase();
   const [results] = await database.executeSql(`
-    SELECT id, invoice_no, patient_name, billing_type, payable, total_paid, status
+    SELECT id, invoice_no, patient_name, patient_reg, billing_type, payable, total_paid, status, invoice_date
     FROM invoices
     ORDER BY created_at DESC
   `);
@@ -254,10 +256,12 @@ export async function getAllInvoices(): Promise<InvoiceSummary[]> {
     items.push({
       id: row.id,
       name: row.patient_name,
+      reg: row.patient_reg || '',
       invoice: row.invoice_no,
       type: row.billing_type,
       amount: `₹${Number(payable).toLocaleString('en-IN')}`,
       status: displayStatus,
+      date: row.invoice_date || '',
     });
   }
   return items;
@@ -266,7 +270,7 @@ export async function getAllInvoices(): Promise<InvoiceSummary[]> {
 export async function getInvoicesByPatient(reg: string): Promise<InvoiceSummary[]> {
   const database = await getDatabase();
   const [results] = await database.executeSql(
-    `SELECT id, invoice_no, patient_name, billing_type, payable, total_paid, status
+    `SELECT id, invoice_no, patient_name, patient_reg, billing_type, payable, total_paid, status, invoice_date
      FROM invoices WHERE patient_reg = ?
      ORDER BY created_at DESC`,
     [reg],
@@ -283,10 +287,12 @@ export async function getInvoicesByPatient(reg: string): Promise<InvoiceSummary[
     items.push({
       id: row.id,
       name: row.patient_name,
+      reg: row.patient_reg || '',
       invoice: row.invoice_no,
       type: row.billing_type,
       amount: `₹${Number(payable).toLocaleString('en-IN')}`,
       status: displayStatus,
+      date: row.invoice_date || '',
     });
   }
   return items;
@@ -340,9 +346,21 @@ export async function getFullInvoice(id: string): Promise<Invoice | null> {
     balanceDue: row.balance_due,
     status: row.status,
     note: row.note || '',
+    pdfPath: row.pdf_path || '',
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+}
+
+export async function updateInvoicePdfPath(
+  id: string,
+  pdfPath: string,
+): Promise<void> {
+  const database = await getDatabase();
+  await database.executeSql('UPDATE invoices SET pdf_path = ? WHERE id = ?', [
+    pdfPath,
+    id,
+  ]);
 }
 
 export async function getDashboardStats(): Promise<DashboardStats> {

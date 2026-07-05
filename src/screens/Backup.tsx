@@ -30,23 +30,12 @@ import {
   Alert,
 } from 'react-native';
 
-const COLORS = {
-  teal: '#2E7D72',
-  tealDark: '#1F5C56',
-  tealLight: '#D6EAE7',
-  bg: '#EFF5F4',
-  card: '#FFFFFF',
-  textPrimary: '#1A2E2B',
-  textSecondary: '#7A9490',
-  sectionLabel: '#2E7D72',
-  border: '#E2EDEB',
-  amber: '#A07820',
+import BASE from '../constants/colors';
+
+const C = {
+  ...BASE,
   amberBtn: '#B8921A',
   amberBtnDark: '#9A7A14',
-  amberBg: '#FEF8EC',
-  amberBorder: '#D4A82A',
-  amberText: '#7A5C10',
-  headerSub: 'rgba(255,255,255,0.75)',
 };
 
 const BACKUP_HISTORY = [
@@ -101,7 +90,7 @@ export default function DataBackupScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.teal} />
+      <StatusBar barStyle="light-content" backgroundColor={C.teal} />
 
       {/* Header */}
       <View style={styles.header}>
@@ -178,12 +167,12 @@ export default function DataBackupScreen() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: COLORS.teal,
+    backgroundColor: C.teal,
   },
 
   // Header
   header: {
-    backgroundColor: COLORS.teal,
+    backgroundColor: C.teal,
     paddingHorizontal: 20,
     paddingTop: 12,
     paddingBottom: 20,
@@ -196,14 +185,14 @@ const styles = StyleSheet.create({
   },
   headerSub: {
     fontSize: 13,
-    color: COLORS.headerSub,
+    color: C.headerSub,
     marginTop: 3,
   },
 
   // Scroll
   scroll: {
     flex: 1,
-    backgroundColor: COLORS.bg,
+    backgroundColor: C.bg,
   },
   container: {
     paddingHorizontal: 16,
@@ -214,7 +203,7 @@ const styles = StyleSheet.create({
 
   // Card
   card: {
-    backgroundColor: COLORS.card,
+    backgroundColor: C.card,
     borderRadius: 16,
     padding: 16,
     shadowColor: '#000',
@@ -228,7 +217,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 11,
     fontWeight: '800',
-    color: COLORS.sectionLabel,
+    color: C.sectionLabel,
     letterSpacing: 1.1,
     marginTop: 4,
     marginBottom: -2,
@@ -246,12 +235,12 @@ const styles = StyleSheet.create({
   storageTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: C.textPrimary,
     marginBottom: 4,
   },
   storageDesc: {
     fontSize: 13,
-    color: COLORS.textSecondary,
+    color: C.textSecondary,
     lineHeight: 18,
   },
   storageSize: {
@@ -260,30 +249,30 @@ const styles = StyleSheet.create({
   storageSizeNum: {
     fontSize: 26,
     fontWeight: '800',
-    color: COLORS.teal,
+    color: C.teal,
     letterSpacing: -1,
     lineHeight: 28,
   },
   storageSizeUnit: {
     fontSize: 14,
     fontWeight: '700',
-    color: COLORS.teal,
+    color: C.teal,
     letterSpacing: 0.5,
   },
 
   // Export
   exportDesc: {
     fontSize: 13,
-    color: COLORS.textSecondary,
+    color: C.textSecondary,
     lineHeight: 20,
     marginBottom: 16,
   },
   exportBtn: {
-    backgroundColor: COLORS.amberBtn,
+    backgroundColor: C.amberBtn,
     borderRadius: 14,
     paddingVertical: 15,
     alignItems: 'center',
-    shadowColor: COLORS.amberBtn,
+    shadowColor: C.amberBtn,
     shadowOpacity: 0.35,
     shadowRadius: 8,
     shadowOffset: {width: 0, height: 4},
@@ -300,7 +289,7 @@ const styles = StyleSheet.create({
   },
   lastExport: {
     fontSize: 12,
-    color: COLORS.textSecondary,
+    color: C.textSecondary,
     textAlign: 'center',
     marginTop: 10,
   },
@@ -311,7 +300,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: C.border,
     gap: 8,
   },
   backupRowLast: {
@@ -324,23 +313,23 @@ const styles = StyleSheet.create({
   backupName: {
     fontSize: 14,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: C.textPrimary,
     letterSpacing: -0.2,
   },
   backupDate: {
     fontSize: 12,
-    color: COLORS.textSecondary,
+    color: C.textSecondary,
     marginTop: 3,
   },
   backupSize: {
     fontSize: 12,
-    color: COLORS.textSecondary,
+    color: C.textSecondary,
     flexShrink: 0,
   },
 
   // Info banner
   infoBanner: {
-    backgroundColor: COLORS.amberBg,
+    backgroundColor: C.amberBg,
     borderRadius: 12,
     padding: 14,
     flexDirection: 'row',
@@ -350,13 +339,13 @@ const styles = StyleSheet.create({
   infoBannerBar: {
     width: 3,
     borderRadius: 4,
-    backgroundColor: COLORS.amberBorder,
+    backgroundColor: C.amberBorder,
     flexShrink: 0,
   },
   infoBannerText: {
     flex: 1,
     fontSize: 13,
-    color: COLORS.amberText,
+    color: C.amberText,
     lineHeight: 20,
   },
 });
