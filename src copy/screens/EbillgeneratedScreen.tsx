@@ -167,16 +167,6 @@ export default function EBillGeneratedScreen({navigation, route}: any) {
 
   const generatePdf = async (): Promise<string> => {
     const fmt = (n: number) => '\u20B9' + Number(n).toLocaleString('en-IN');
-    const badgeStyle = (status: string) => {
-      const map: Record<string, string> = {
-        Paid: 'background:#E8F5EC;color:#27AE60',
-        'Advance Paid': 'background:#EBF5FB;color:#2980B9',
-        'Partial Paid': 'background:#F4ECF7;color:#8E44AD',
-        'Over Paid': 'background:#E8F8F5;color:#1ABC9C',
-        Due: 'background:#FEF0E6;color:#D35400',
-      };
-      return map[status] || 'background:#E8F5EC;color:#27AE60';
-    };
     const logoHtml = clinicSettings?.logoUri
       ? `<img src="${clinicSettings.logoUri}" style="width:52px;height:52px;border-radius:12px;object-fit:cover" />`
       : '🌿';
@@ -232,7 +222,7 @@ export default function EBillGeneratedScreen({navigation, route}: any) {
       '.amt-bold{font-size:15px;font-weight:800;color:#1A2E2B}',
       '.dashed{height:1px;border-top:1px dashed #C8DEDA;margin:8px 0}',
       '.status-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0}',
-      '.badge{border-radius:20px;padding:4px 14px;font-size:12px;font-weight:700}',
+      '.badge{background:#FDECEB;border-radius:20px;padding:4px 14px;font-size:12px;font-weight:700;color:#C0392B}',
       '.note-section{margin:12px 16px;background:#F0F9F7;border-radius:10px;padding:12px}',
       '.note-label{font-size:11px;font-weight:700;color:#1A7866;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px}',
       '.note-text{font-size:13px;color:#1A2E2B;line-height:18px}',
@@ -309,9 +299,7 @@ export default function EBillGeneratedScreen({navigation, route}: any) {
       '<div class="amt-row"><span class="amt-label">Balance Due</span><span class="amt-val">' +
         fmt(inv.balanceDue) +
         '</span></div>',
-      '<div class="status-row"><span class="amt-label">Payment Status</span><span class="badge" style="' +
-        badgeStyle(inv.paymentStatus) +
-        '">' +
+      '<div class="status-row"><span class="amt-label">Payment Status</span><span class="badge">' +
         inv.paymentStatus +
         '</span></div>',
       '</div>',
@@ -633,27 +621,23 @@ export default function EBillGeneratedScreen({navigation, route}: any) {
               <View
                 style={[
                   styles.dueBadge,
-                  inv.paymentStatus === 'Over Paid' && {
-                    backgroundColor: COLORS.cyanLight,
-                  },
-                  inv.paymentStatus === 'Advance Paid' && {
-                    backgroundColor: COLORS.skyBlueLight,
+                  (inv.paymentStatus === 'Over Paid' ||
+                    inv.paymentStatus === 'Advance Paid') && {
+                    backgroundColor: COLORS.greenLight,
                   },
                   inv.paymentStatus === 'Partial Paid' && {
-                    backgroundColor: COLORS.violetLight,
+                    backgroundColor: COLORS.amberBg,
                   },
                 ]}>
                 <Text
                   style={[
                     styles.dueBadgeText,
-                    inv.paymentStatus === 'Over Paid' && {
-                      color: COLORS.cyan,
-                    },
-                    inv.paymentStatus === 'Advance Paid' && {
-                      color: COLORS.skyBlue,
+                    (inv.paymentStatus === 'Over Paid' ||
+                      inv.paymentStatus === 'Advance Paid') && {
+                      color: COLORS.green,
                     },
                     inv.paymentStatus === 'Partial Paid' && {
-                      color: COLORS.violet,
+                      color: COLORS.amber,
                     },
                   ]}>
                   {inv.paymentStatus}
@@ -940,12 +924,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   dueBadge: {
-    backgroundColor: COLORS.orangeLight,
+    backgroundColor: COLORS.redLight,
     borderRadius: 20,
     paddingHorizontal: 14,
     paddingVertical: 6,
   },
-  dueBadgeText: {fontSize: 12, fontWeight: '700', color: COLORS.orange},
+  dueBadgeText: {fontSize: 12, fontWeight: '700', color: COLORS.red},
 
   dashedDivider: {
     height: 1,

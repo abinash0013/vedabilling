@@ -17,12 +17,11 @@ import BASE from '../constants/colors';
 const COLORS = BASE;
 
 const STATUS_COLORS: Record<string, string> = {
-  'Advance Paid': COLORS.skyBlue,
-  Paid: COLORS.green,
-  Partial: COLORS.violet,
-  Unpaid: COLORS.red,
-  Overpaid: COLORS.cyan,
-  Due: COLORS.orange,
+  'Advance Paid': '#2E7D72',
+  Paid: '#2ECC71',
+  Partial: '#F39C12',
+  Unpaid: '#E74C3C',
+  Overpaid: '#9B59B6',
 };
 
 function InvoiceRow({
@@ -34,7 +33,7 @@ function InvoiceRow({
   isLast: boolean;
   onPress: () => void;
 }) {
-  const statusColor = STATUS_COLORS[item.status] || COLORS.orange;
+  const statusColor = STATUS_COLORS[item.status] || '#7A9490';
   return (
     <TouchableOpacity
       activeOpacity={0.7}

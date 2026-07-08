@@ -11,7 +11,7 @@ import {
   Image,
 } from 'react-native';
 import RNHTMLtoPDF from 'react-native-html-to-pdf';
-import RNFS from 'react-native-fs';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {updateInvoicePdfPath, getClinicSettings} from '../database';
 
 import BASE from '../constants/colors';
@@ -92,16 +92,6 @@ export default function ReviewInvoiceScreen({navigation, route}: any) {
   const handleGenerate = async () => {
     try {
       const fmt = (n: number) => '\u20B9' + Number(n).toLocaleString('en-IN');
-      const badgeStyle = (status: string) => {
-        const map: Record<string, string> = {
-          Paid: 'background:#E8F5EC;color:#27AE60',
-          'Advance Paid': 'background:#EBF5FB;color:#2980B9',
-          'Partial Paid': 'background:#F4ECF7;color:#8E44AD',
-          'Over Paid': 'background:#E8F8F5;color:#1ABC9C',
-          Due: 'background:#FEF0E6;color:#D35400',
-        };
-        return map[status] || 'background:#E8F5EC;color:#27AE60';
-      };
       const logoHtml = clinicSettings?.logoUri
         ? `<img src="${clinicSettings.logoUri}" style="width:52px;height:52px;border-radius:12px;object-fit:cover" />`
         : '🌿';
@@ -135,7 +125,7 @@ export default function ReviewInvoiceScreen({navigation, route}: any) {
         '.amt-bold{font-size:15px;font-weight:800;color:#1A2E2B}',
         '.dashed{height:1px;border-top:1px dashed #C8DEDA;margin:8px 0}',
         '.status-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0}',
-        '.badge{border-radius:20px;padding:4px 14px;font-size:12px;font-weight:700}',
+        '.badge{background:#FDECEB;border-radius:20px;padding:4px 14px;font-size:12px;font-weight:700;color:#C0392B}',
         '.note-section{margin:12px 16px;background:#F0F9F7;border-radius:10px;padding:12px}',
         '.note-label{font-size:11px;font-weight:700;color:#1A7866;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px}',
         '.note-text{font-size:13px;color:#1A2E2B;line-height:18px}',
@@ -229,9 +219,7 @@ export default function ReviewInvoiceScreen({navigation, route}: any) {
         '<div class="amt-row"><span class="amt-label">Balance Due</span><span class="amt-val">' +
           fmt(amount.balanceDue) +
           '</span></div>',
-        '<div class="status-row"><span class="amt-label">Payment Status</span><span class="badge" style="' +
-          badgeStyle(amount.status) +
-          '">' +
+        '<div class="status-row"><span class="amt-label">Payment Status</span><span class="badge">' +
           amount.status +
           '</span></div>',
         '</div>',
@@ -265,10 +253,8 @@ export default function ReviewInvoiceScreen({navigation, route}: any) {
       }
 
       try {
-        const filePath = `${RNFS.DocumentDirectoryPath}/invoices_history.json`;
-        const exists = await RNFS.exists(filePath);
-        const raw = exists ? await RNFS.readFile(filePath, 'utf8') : '[]';
-        const list = JSON.parse(raw);
+        const existing = await AsyncStorage.getItem('invoices');
+        const list = existing ? JSON.parse(existing) : [];
         list.unshift({
           invoiceNo: billing.invoiceNo,
           patientName: patient.name,
@@ -277,7 +263,7 @@ export default function ReviewInvoiceScreen({navigation, route}: any) {
           status: amount.status,
           savedAt: new Date().toISOString(),
         });
-        await RNFS.writeFile(filePath, JSON.stringify(list), 'utf8');
+        await AsyncStorage.setItem('invoices', JSON.stringify(list));
       } catch {
         // silent
       }
@@ -427,20 +413,16 @@ export default function ReviewInvoiceScreen({navigation, route}: any) {
             <View
               style={[
                 styles.statusBadge,
-                amount.status === 'Over Paid' && {backgroundColor: COLORS.cyanLight},
-                amount.status === 'Advance Paid' && {backgroundColor: COLORS.skyBlueLight},
-                amount.status === 'Partial Paid' && {backgroundColor: COLORS.violetLight},
-                amount.status === 'Paid' && {backgroundColor: COLORS.greenLight},
-                amount.status === 'Due' && {backgroundColor: COLORS.orangeLight},
+                (amount.status === 'Over Paid' || amount.status === 'Advance Paid') && {backgroundColor: '#E8F5EC'},
+                amount.status === 'Partial Paid' && {backgroundColor: '#FEF3E2'},
+                amount.status === 'Due' && {backgroundColor: '#FDECEB'},
               ]}>
               <Text
                 style={[
                   styles.statusBadgeText,
-                  amount.status === 'Over Paid' && {color: COLORS.cyan},
-                  amount.status === 'Advance Paid' && {color: COLORS.skyBlue},
-                  amount.status === 'Partial Paid' && {color: COLORS.violet},
-                  amount.status === 'Paid' && {color: COLORS.green},
-                  amount.status === 'Due' && {color: COLORS.orange},
+                  (amount.status === 'Over Paid' || amount.status === 'Advance Paid') && {color: '#27AE60'},
+                  amount.status === 'Partial Paid' && {color: '#E67E22'},
+                  amount.status === 'Due' && {color: '#C0392B'},
                 ]}>
                 {amount.status}
               </Text>
@@ -610,7 +592,7 @@ const styles = StyleSheet.create({
   },
   statusLabel: {fontSize: 14, color: COLORS.textSecondary},
   statusBadge: {
-    backgroundColor: COLORS.greenLight,
+    backgroundColor: COLORS.tealLight,
     borderRadius: 20,
     paddingHorizontal: 14,
     paddingVertical: 6,

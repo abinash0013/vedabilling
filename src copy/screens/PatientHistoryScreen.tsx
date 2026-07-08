@@ -7,18 +7,13 @@ import {
   StyleSheet,
   SafeAreaView,
   StatusBar,
-  Modal,
-  TextInput,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
 } from "react-native";
 import {
   useNavigation,
   useRoute,
   useFocusEffect,
 } from "@react-navigation/native";
-import { getPatientByReg, getInvoicesByPatient, updatePatient } from "../database";
+import { getPatientByReg, getInvoicesByPatient } from "../database";
 import type { Patient, InvoiceSummary } from "../types";
 
 import BASE from "../constants/colors";
@@ -34,11 +29,11 @@ const COLORS = {
 const STATUS_STYLE: Record<string, { bg: string; text: string }> = {
   Paid: { bg: COLORS.greenLight, text: COLORS.green },
   Unpaid: { bg: COLORS.redLight, text: COLORS.red },
-  Partial: { bg: COLORS.violetLight, text: COLORS.violet },
-  "Over Paid": { bg: COLORS.cyanLight, text: COLORS.cyan },
-  "Advance Paid": { bg: COLORS.skyBlueLight, text: COLORS.skyBlue },
-  "Partial Paid": { bg: COLORS.violetLight, text: COLORS.violet },
-  Due: { bg: COLORS.orangeLight, text: COLORS.orange },
+  Partial: { bg: "#FEF3E2", text: "#E67E22" },
+  "Over Paid": { bg: COLORS.greenLight, text: COLORS.green },
+  "Advance Paid": { bg: COLORS.greenLight, text: COLORS.green },
+  "Partial Paid": { bg: "#FEF3E2", text: "#E67E22" },
+  Due: { bg: COLORS.redLight, text: COLORS.red },
 };
 
 function StatusBadge({ status }: { status: string }) {
@@ -76,46 +71,6 @@ export default function PatientHistoryScreen() {
   const routePatient = route?.params?.patient;
   const [patientInfo, setPatientInfo] = useState<Patient | null>(null);
   const [invoices, setInvoices] = useState<InvoiceSummary[]>([]);
-  const [editModal, setEditModal] = useState(false);
-  const [editName, setEditName] = useState("");
-  const [editReg, setEditReg] = useState("");
-  const [editPhone, setEditPhone] = useState("");
-  const [editAddress, setEditAddress] = useState("");
-
-  const openEdit = () => {
-    if (!patientInfo) return;
-    setEditName(patientInfo.name);
-    setEditReg(patientInfo.reg);
-    setEditPhone(patientInfo.phone);
-    setEditAddress(patientInfo.address);
-    setEditModal(true);
-  };
-
-  const handleEditSave = async () => {
-    if (!patientInfo) return;
-    const trimmedName = editName.trim();
-    const trimmedReg = editReg.trim();
-    if (!trimmedName) {
-      Alert.alert("Error", "Name is required.");
-      return;
-    }
-    if (!trimmedReg) {
-      Alert.alert("Error", "Patient ID is required.");
-      return;
-    }
-    try {
-      await updatePatient(patientInfo.reg, {
-        name: trimmedName,
-        phone: editPhone.trim(),
-        address: editAddress.trim(),
-        reg: trimmedReg,
-      });
-      setEditModal(false);
-      navigation.navigate('Tabs', { screen: 'Patients' });
-    } catch (e: any) {
-      Alert.alert("Error", e.message || "Failed to update patient.");
-    }
-  };
 
   const loadData = useCallback(async () => {
     if (!routePatient?.reg) return;
@@ -175,13 +130,6 @@ export default function PatientHistoryScreen() {
           <Text style={styles.headerName}>{patientName}</Text>
           <Text style={styles.headerReg}>{patientReg}</Text>
         </View>
-        <TouchableOpacity
-          style={styles.editBtn}
-          activeOpacity={0.8}
-          onPress={openEdit}
-        >
-          <Text style={styles.editIcon}>✎</Text>
-        </TouchableOpacity>
       </View>
 
       <ScrollView
@@ -190,22 +138,22 @@ export default function PatientHistoryScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* Contact card */}
-        {patientInfo && (
+        {patientInfo?.phone || patientInfo?.address ? (
           <View style={styles.contactCard}>
-            <View style={styles.contactRow}>
-              <Text style={styles.contactLabel}>Patient ID</Text>
-              <Text style={styles.contactValue}>{patientInfo.reg}</Text>
-            </View>
-            <View style={styles.contactRow}>
-              <Text style={styles.contactLabel}>Phone</Text>
-              <Text style={styles.contactValue}>{patientInfo.phone || "-"}</Text>
-            </View>
-            <View style={[styles.contactRow, styles.contactRowLast]}>
-              <Text style={styles.contactLabel}>Address</Text>
-              <Text style={styles.contactValue}>{patientInfo.address || "-"}</Text>
-            </View>
+            {patientInfo.phone ? (
+              <View style={styles.contactRow}>
+                <Text style={styles.contactLabel}>Phone</Text>
+                <Text style={styles.contactValue}>{patientInfo.phone}</Text>
+              </View>
+            ) : null}
+            {patientInfo.address ? (
+              <View style={[styles.contactRow, styles.contactRowLast]}>
+                <Text style={styles.contactLabel}>Address</Text>
+                <Text style={styles.contactValue}>{patientInfo.address}</Text>
+              </View>
+            ) : null}
           </View>
-        )}
+        ) : null}
 
         {/* Stats row */}
         <View style={styles.statsRow}>
@@ -250,65 +198,6 @@ export default function PatientHistoryScreen() {
           {" — totals and past invoices for one patient."}
         </Text>
       </ScrollView>
-      {/* Edit Patient Modal */}
-      <Modal
-        visible={editModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setEditModal(false)}
-      >
-        <KeyboardAvoidingView
-          style={styles.modalOverlay}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        >
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Edit Patient</Text>
-            <TextInput
-              style={styles.modalInput}
-              placeholder="Patient name"
-              placeholderTextColor={COLORS.textSecondary}
-              value={editName}
-              onChangeText={setEditName}
-              autoFocus
-            />
-            <TextInput
-              style={styles.modalInput}
-              placeholder="Patient ID"
-              placeholderTextColor={COLORS.textSecondary}
-              value={editReg}
-              onChangeText={setEditReg}
-              autoCapitalize="characters"
-            />
-            <TextInput
-              style={styles.modalInput}
-              placeholder="Phone number"
-              placeholderTextColor={COLORS.textSecondary}
-              value={editPhone}
-              onChangeText={setEditPhone}
-              keyboardType="phone-pad"
-              maxLength={10}
-            />
-            <TextInput
-              style={styles.modalInput}
-              placeholder="Address"
-              placeholderTextColor={COLORS.textSecondary}
-              value={editAddress}
-              onChangeText={setEditAddress}
-            />
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={styles.cancelBtn}
-                onPress={() => setEditModal(false)}
-              >
-                <Text style={styles.cancelBtnText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.saveBtn} onPress={handleEditSave}>
-                <Text style={styles.saveBtnText}>Save</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
     </SafeAreaView>
   );
 }
@@ -367,8 +256,7 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   editIcon: {
-    fontSize: 18,
-    color: COLORS.headerText,
+    fontSize: 16,
   },
 
   // Scroll
@@ -546,68 +434,5 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     paddingVertical: 24,
     fontSize: 14,
-  },
-
-  // Modal
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 24,
-  },
-  modalContent: {
-    backgroundColor: COLORS.card,
-    borderRadius: 20,
-    padding: 24,
-    width: "100%",
-    maxWidth: 400,
-    gap: 14,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: COLORS.textPrimary,
-    textAlign: "center",
-    marginBottom: 4,
-  },
-  modalInput: {
-    backgroundColor: COLORS.inputBg,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 15,
-    color: COLORS.textPrimary,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  modalActions: {
-    flexDirection: "row",
-    gap: 12,
-    marginTop: 4,
-  },
-  cancelBtn: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 12,
-    backgroundColor: COLORS.inputBg,
-    alignItems: "center",
-  },
-  cancelBtnText: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: COLORS.textSecondary,
-  },
-  saveBtn: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 12,
-    backgroundColor: COLORS.teal,
-    alignItems: "center",
-  },
-  saveBtnText: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: COLORS.headerText,
   },
 });

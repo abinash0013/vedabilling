@@ -184,37 +184,6 @@ export async function getPatientByReg(reg: string): Promise<Patient | null> {
   };
 }
 
-export async function updatePatient(
-  reg: string,
-  data: { name: string; phone: string; address: string; reg?: string },
-): Promise<void> {
-  const database = await getDatabase();
-  const now = new Date().toISOString();
-  const newReg = data.reg?.trim();
-  if (newReg && newReg !== reg) {
-    const [existing] = await database.executeSql(
-      'SELECT reg FROM patients WHERE reg = ? AND reg != ?',
-      [newReg, reg],
-    );
-    if (existing.rows.length > 0) {
-      throw new Error('Patient ID already exists.');
-    }
-    await database.executeSql(
-      `UPDATE invoices SET patient_reg = ? WHERE patient_reg = ?`,
-      [newReg, reg],
-    );
-    await database.executeSql(
-      `UPDATE patients SET reg = ?, name = ?, phone = ?, address = ?, updated_at = ? WHERE reg = ?`,
-      [newReg, data.name, data.phone, data.address, now, reg],
-    );
-  } else {
-    await database.executeSql(
-      `UPDATE patients SET name = ?, phone = ?, address = ?, updated_at = ? WHERE reg = ?`,
-      [data.name, data.phone, data.address, now, reg],
-    );
-  }
-}
-
 export async function insertInvoice(invoice: Invoice): Promise<void> {
   const database = await getDatabase();
   const now = new Date().toISOString();

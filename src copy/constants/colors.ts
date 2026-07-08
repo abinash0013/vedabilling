@@ -25,14 +25,6 @@ const COLORS = {
   amberText: '#7A5C10',
   green: '#27AE60',
   greenLight: '#E8F5EC',
-  orange: '#D35400',
-  orangeLight: '#FEF0E6',
-  skyBlue: '#2980B9',
-  skyBlueLight: '#EBF5FB',
-  violet: '#8E44AD',
-  violetLight: '#F4ECF7',
-  cyan: '#1ABC9C',
-  cyanLight: '#E8F8F5',
 };
 
 export default COLORS;
