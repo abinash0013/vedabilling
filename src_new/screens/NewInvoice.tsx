@@ -14,7 +14,7 @@ import {
   Modal,
 } from 'react-native';
 import RNFS from 'react-native-fs';
-import {insertInvoice, getNextInvoiceNo} from '../database';
+import {insertInvoice} from '../database';
 
 import BASE from '../constants/colors';
 
@@ -88,9 +88,14 @@ const formatDateString = (d: Date) => {
   return `${dd}/${mm}/${yyyy}`;
 };
 
-const generateInvoiceNo = async () => {
-  const nextNo = await getNextInvoiceNo();
-  return nextNo;
+const generateInvoiceNo = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1;
+  const fyStart = month >= 4 ? year : year - 1;
+  const fy = String(fyStart).slice(-2);
+  const fyEnd = String(fyStart + 1).slice(-2);
+  return `VMC/INV/${fy}-${fyEnd}/0001`;
 };
 
 const parseDate = (str: string): Date | null => {
@@ -222,8 +227,7 @@ function DatePickerModal({visible, currentDate, onSelect, onClose}: any) {
 export default function NewInvoiceStep2({navigation, route}: any) {
   const paramsPatient = route?.params?.patient;
   const today = new Date();
-  const [invoiceNo, setInvoiceNo] = useState('');
-  useEffect(() => { generateInvoiceNo().then(setInvoiceNo); }, []);
+  const [invoiceNo, setInvoiceNo] = useState(generateInvoiceNo());
   const [invoiceDate, setInvoiceDate] = useState(formatDateString(today));
   const [dueDate, setDueDate] = useState(formatDateString(addDays(today, 7)));
   const [therapist, setTherapist] = useState('Dr. Yash Pratihasta, PT');
@@ -322,7 +326,6 @@ export default function NewInvoiceStep2({navigation, route}: any) {
         createdAt: data.createdAt,
         updatedAt: data.createdAt,
       });
-      setInvoiceNo(await getNextInvoiceNo());
       Alert.alert('Saved', `Invoice saved successfully.`);
     } catch (error: any) {
       Alert.alert('Error', error?.message || 'Failed to save invoice.');

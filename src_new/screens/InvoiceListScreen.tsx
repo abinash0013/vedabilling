@@ -1,4 +1,4 @@
-import {useState, useCallback} from 'react';
+import React, {useState, useCallback} from 'react';
 import {
   View,
   Text,
@@ -14,64 +14,41 @@ import {getAllInvoices, getFullInvoice} from '../database';
 import type {InvoiceSummary} from '../types';
 import BASE from '../constants/colors';
 
-const COLORS = {
-  ...BASE,
-  tealBorder: '#2E7D72',
-  textMuted: '#9AAFAC',
+const COLORS = BASE;
+
+const STATUS_COLORS: Record<string, string> = {
+  'Advance Paid': COLORS.skyBlue,
+  Paid: COLORS.green,
+  Partial: COLORS.violet,
+  Unpaid: COLORS.red,
+  Overpaid: COLORS.cyan,
+  Due: COLORS.orange,
 };
 
-const statusStyles: Record<string, {bg: string; text: string}> = {
-  Paid: {bg: COLORS.greenLight, text: COLORS.green},
-  Partial: {bg: COLORS.violetLight, text: COLORS.violet},
-  Unpaid: {bg: COLORS.redLight, text: COLORS.red},
-  'Over Paid': {bg: COLORS.cyanLight, text: COLORS.cyan},
-  'Advance Paid': {bg: COLORS.skyBlueLight, text: COLORS.skyBlue},
-  'Partial Paid': {bg: COLORS.violetLight, text: COLORS.violet},
-  Due: {bg: COLORS.orangeLight, text: COLORS.orange},
-};
-
-function Avatar({name}: any) {
-  const parts = (name || '').trim().split(/\s+/);
-  const initials =
-    parts.length > 1
-      ? (parts[0][0] || '') + (parts[parts.length - 1][0] || '')
-      : parts[0]?.[0] || '?';
-  return (
-    <View style={styles.avatar}>
-      <Text style={styles.avatarText}>{initials.toUpperCase()}</Text>
-    </View>
-  );
-}
-
-function StatusBadge({status}: {status: string}) {
-  const s = statusStyles[status] || statusStyles.Paid;
-  return (
-    <View style={[styles.badge, {backgroundColor: s.bg}]}>
-      <Text style={[styles.badgeText, {color: s.text}]}>{status}</Text>
-    </View>
-  );
-}
-
-function InvoiceRow({item, isLast, onPress}: any) {
+function InvoiceRow({
+  item,
+  isLast,
+  onPress,
+}: {
+  item: InvoiceSummary;
+  isLast: boolean;
+  onPress: () => void;
+}) {
+  const statusColor = STATUS_COLORS[item.status] || COLORS.orange;
   return (
     <TouchableOpacity
       activeOpacity={0.7}
-      style={[styles.invoiceRow, isLast && styles.invoiceRowLast]}
+      style={[styles.row, isLast && styles.rowLast]}
       onPress={onPress}>
-      <View style={styles.invoiceRowInner}>
-        <Avatar name={item.name} />
-        <View style={styles.invRowLeft}>
-          <Text style={styles.invoiceName}>{item.name}</Text>
-          <Text style={styles.invoiceMeta}>{item.reg}</Text>
-          <Text style={styles.invoiceMeta}>{item.invoice}</Text>
-        </View>
-        <View style={styles.invRowRight}>
-          <Text style={styles.invoiceAmount}>{item.amount}</Text>
-          <Text style={[styles.invoiceMeta, {textAlign: 'right'}]}>
-            {item.date}
-          </Text>
-          <StatusBadge status={item.status} />
-        </View>
+      <View style={styles.rowInfo}>
+        <Text style={styles.invoiceNo}>{item.invoice}</Text>
+        <Text style={styles.patientName}>{item.name}</Text>
+        <Text style={styles.meta}>
+          {item.date} · {item.amount}
+        </Text>
+      </View>
+      <View style={[styles.badge, {backgroundColor: statusColor}]}>
+        <Text style={styles.badgeText}>{item.status}</Text>
       </View>
     </TouchableOpacity>
   );
@@ -104,7 +81,6 @@ export default function InvoiceListScreen() {
         return;
       }
       navigation.navigate('EBillGenerated', {
-        showBack: true,
         pdfPath: inv.pdfPath || '',
         patient: {name: inv.patientName, reg: inv.patientReg},
         billing: {
@@ -189,70 +165,35 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 20,
-    gap: 10,
+    gap: 1,
   },
-  invoiceRow: {
+  row: {
     backgroundColor: COLORS.card,
-    borderRadius: 16,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    shadowOffset: {width: 0, height: 2},
-    elevation: 2,
-  },
-  invoiceRowLast: {},
-  invoiceRowInner: {
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+    borderRadius: 12,
+    marginBottom: 8,
+    shadowColor: '#000',
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    shadowOffset: {width: 0, height: 2},
+    elevation: 1,
   },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: COLORS.teal,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#FFF',
-  },
-  invRowLeft: {
-    flex: 1,
-    gap: 4,
-  },
-  invoiceName: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: COLORS.textPrimary,
-    letterSpacing: -0.2,
-  },
-  invoiceMeta: {
-    fontSize: 12,
-    color: COLORS.textSecondary,
-  },
-  invRowRight: {
-    alignItems: 'flex-end',
-    gap: 4,
-    flexShrink: 0,
-  },
-  invoiceAmount: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: COLORS.teal,
-  },
+  rowLast: {},
+  rowInfo: {flex: 1},
+  invoiceNo: {fontSize: 15, fontWeight: '700', color: COLORS.teal},
+  patientName: {fontSize: 13, color: COLORS.textSecondary, marginTop: 2},
+  meta: {fontSize: 12, color: COLORS.textSecondary, marginTop: 2},
   badge: {
     borderRadius: 12,
     paddingHorizontal: 10,
-    paddingVertical: 3,
+    paddingVertical: 4,
   },
-  badgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
+  badgeText: {fontSize: 11, fontWeight: '700', color: '#FFF'},
   empty: {
     alignItems: 'center',
     paddingTop: 60,

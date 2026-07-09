@@ -145,7 +145,7 @@ export default function Dashboard() {
     .reduce((sum, i) => sum + parseAmt(i.amount), 0);
   const partialTotal = invoices
     .filter(i => i.status === 'Partial')
-    .reduce((sum, i) => sum + ((i.payable ?? parseAmt(i.amount)) - (i.totalPaid ?? 0)), 0);
+    .reduce((sum, i) => sum + parseAmt(i.amount), 0);
   const unpaidTotal = invoices
     .filter(i => i.status === 'Unpaid')
     .reduce((sum, i) => sum + parseAmt(i.amount), 0);
@@ -351,9 +351,7 @@ export default function Dashboard() {
             />
           ))}
           {invoices.length > 5 && (
-            <TouchableOpacity onPress={() => navigation.navigate('Invoices')}>
-              <Text style={styles.viewAll}>View all invoices...</Text>
-            </TouchableOpacity>
+            <Text style={styles.viewAll}>View all invoices...</Text>
           )}
         </View>
       </ScrollView>

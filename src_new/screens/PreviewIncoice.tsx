@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import RNHTMLtoPDF from 'react-native-html-to-pdf';
 import RNFS from 'react-native-fs';
-import {updateInvoicePdfPath, getClinicSettings, getFullInvoice} from '../database';
+import {updateInvoicePdfPath, getClinicSettings} from '../database';
 
 import BASE from '../constants/colors';
 
@@ -75,7 +75,6 @@ export default function ReviewInvoiceScreen({navigation, route}: any) {
     },
   };
   const [clinicSettings, setClinicSettings] = useState<any>(null);
-  const [alreadyGenerated, setAlreadyGenerated] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -83,12 +82,6 @@ export default function ReviewInvoiceScreen({navigation, route}: any) {
         const settings = await getClinicSettings();
         setClinicSettings(settings);
       } catch {}
-      if (billing.invoiceNo) {
-        try {
-          const inv = await getFullInvoice(billing.invoiceNo);
-          if (inv?.pdfPath) setAlreadyGenerated(true);
-        } catch {}
-      }
     })();
   }, []);
 
@@ -261,15 +254,9 @@ export default function ReviewInvoiceScreen({navigation, route}: any) {
         '</div></body></html>',
       ].join('');
 
-      const now = new Date();
-      const dd = String(now.getDate()).padStart(2, '0');
-      const mm = String(now.getMonth() + 1).padStart(2, '0');
-      const hh = String(now.getHours()).padStart(2, '0');
-      const min = String(now.getMinutes()).padStart(2, '0');
-      const ss = String(now.getSeconds()).padStart(2, '0');
       const pdf = await RNHTMLtoPDF.convert({
         html: h,
-        fileName: `Invoice_${billing.invoiceNo.replace(/\//g, '-')}_${dd}-${mm} & time(${hh} ${min} ${ss})`,
+        fileName: `Invoice_${billing.invoiceNo.replace(/\//g, '-')}`,
       });
 
       if (!pdf.filePath) {
@@ -324,17 +311,15 @@ export default function ReviewInvoiceScreen({navigation, route}: any) {
 
       {/* Header */}
       <View style={styles.header}>
-        {!alreadyGenerated && (
-          <TouchableOpacity
-            style={styles.backBtn}
-            activeOpacity={0.8}
-            onPress={() => navigation.goBack()}>
-            <Text style={styles.backArrow}>←</Text>
-          </TouchableOpacity>
-        )}
+        <TouchableOpacity
+          style={styles.backBtn}
+          activeOpacity={0.8}
+          onPress={() => navigation.goBack()}>
+          <Text style={styles.backArrow}>←</Text>
+        </TouchableOpacity>
         <View>
           <Text style={styles.headerTitle}>Review Invoice</Text>
-          <Text style={styles.headerSub}>{alreadyGenerated ? 'Invoice already generated' : 'Before generating PDF'}</Text>
+          <Text style={styles.headerSub}>Before generating PDF</Text>
         </View>
       </View>
 
@@ -472,34 +457,21 @@ export default function ReviewInvoiceScreen({navigation, route}: any) {
 
       {/* Sticky bottom */}
       <View style={styles.bottomBar}>
-        {alreadyGenerated ? (
-          <TouchableOpacity
-            style={styles.generateBtn}
-            activeOpacity={0.85}
-            onPress={() => navigation.navigate('Dashboard')}>
-            <Text style={styles.generateBtnText}>Go to Dashboard</Text>
-          </TouchableOpacity>
-        ) : (
-          <>
-            <TouchableOpacity
-              style={styles.editInvoiceBtn}
-              activeOpacity={0.8}
-              onPress={handleEdit}>
-              <Text style={styles.editInvoiceBtnText}>Edit Invoice</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.generateBtn}
-              activeOpacity={0.85}
-              onPress={handleGenerate}>
-              <Text style={styles.generateBtnText}>Generate PDF & Share</Text>
-            </TouchableOpacity>
-          </>
-        )}
-        {!alreadyGenerated && (
-          <Text style={styles.bottomNote}>
-            You can still edit and re-share after this step.
-          </Text>
-        )}
+        <TouchableOpacity
+          style={styles.editInvoiceBtn}
+          activeOpacity={0.8}
+          onPress={handleEdit}>
+          <Text style={styles.editInvoiceBtnText}>Edit Invoice</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.generateBtn}
+          activeOpacity={0.85}
+          onPress={handleGenerate}>
+          <Text style={styles.generateBtnText}>Generate PDF & Share</Text>
+        </TouchableOpacity>
+        <Text style={styles.bottomNote}>
+          You can still edit and re-share after this step.
+        </Text>
       </View>
     </SafeAreaView>
   );

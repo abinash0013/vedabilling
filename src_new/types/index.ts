@@ -59,7 +59,6 @@ export interface InvoiceSummary {
   type: string;
   amount: string;
   payable?: number;
-  totalPaid?: number;
   status: string;
   rawStatus?: string;
   date: string;

@@ -292,8 +292,6 @@ export async function getAllInvoices(): Promise<InvoiceSummary[]> {
       invoice: row.invoice_no,
       type: row.billing_type,
       amount: `₹${Number(payable).toLocaleString('en-IN')}`,
-      payable,
-      totalPaid: paid,
       status: displayStatus,
       date: row.invoice_date || '',
     });
@@ -325,8 +323,6 @@ export async function getInvoicesByPatient(reg: string): Promise<InvoiceSummary[
       invoice: row.invoice_no,
       type: row.billing_type,
       amount: `₹${Number(payable).toLocaleString('en-IN')}`,
-      payable,
-      totalPaid: paid,
       status: displayStatus,
       date: row.invoice_date || '',
     });
@@ -456,32 +452,6 @@ export async function getClinicSettings(): Promise<ClinicSettings | null> {
     logoUri: row.logo_uri || '',
     insuranceClause: row.insurance_clause || '',
   };
-}
-
-export async function getNextInvoiceNo(): Promise<string> {
-  const database = await getDatabase();
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth() + 1;
-  const fyStart = month >= 4 ? year : year - 1;
-  const fy = String(fyStart).slice(-2);
-  const fyEnd = String(fyStart + 1).slice(-2);
-  const prefix = `VMC/INV/${fy}-${fyEnd}/`;
-
-  const [results] = await database.executeSql(
-    `SELECT invoice_no FROM invoices WHERE invoice_no LIKE ? ORDER BY invoice_no DESC LIMIT 1`,
-    [`${prefix}%`],
-  );
-
-  let nextNum = 1;
-  if (results.rows.length > 0) {
-    const last = results.rows.item(0).invoice_no;
-    const parts = last.split('/');
-    const lastNum = parseInt(parts[parts.length - 1], 10);
-    nextNum = (lastNum || 0) + 1;
-  }
-
-  return `${prefix}${String(nextNum).padStart(4, '0')}`;
 }
 
 export async function saveClinicSettings(settings: ClinicSettings): Promise<void> {
