@@ -129,14 +129,6 @@ export async function insertPatient(input: NewPatientInput): Promise<Patient> {
   if (count > 0) {
     patient.id = `${id}${count + 1}`;
   }
-  const [dupReg] = await database.executeSql(
-    'SELECT reg FROM patients WHERE reg = ?',
-    [patient.reg],
-  );
-  if (dupReg.rows.length > 0) {
-    throw new Error('already added please use different id');
-  }
-
   await database.executeSql(
     `INSERT INTO patients (id, reg, name, phone, address, created_at, updated_at)
      VALUES (?, ?, ?, ?, ?, ?, ?)`,
@@ -227,16 +219,8 @@ export async function insertInvoice(invoice: Invoice): Promise<void> {
   const database = await getDatabase();
   const now = new Date().toISOString();
 
-  const [dupInv] = await database.executeSql(
-    'SELECT invoice_no FROM invoices WHERE invoice_no = ?',
-    [invoice.invoiceNo],
-  );
-  if (dupInv.rows.length > 0) {
-    throw new Error('already added please use different id');
-  }
-
   await database.executeSql(
-    `INSERT INTO invoices
+    `INSERT OR REPLACE INTO invoices
       (id, invoice_no, invoice_date, due_date, therapist, patient_reg, patient_name,
        billing_type, total, discount, payable, total_paid, extra_paid, balance_due,
        status, note, pdf_path, created_at, updated_at)
