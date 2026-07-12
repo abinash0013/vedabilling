@@ -244,9 +244,11 @@ export default function PatientHistoryScreen() {
                 isLast={idx === invoices.length - 1}
                 onPress={() => {
                   if (item.status === 'Unpaid' || item.status === 'Partial') {
+                    const balanceDue = (item.payable || 0) - (item.totalPaid || 0);
                     navigation.navigate('NewInvoice', {
                       patient: displayPatient,
                       paymentStatus: item.status === 'Unpaid' ? 'Due' : 'Partial Paid',
+                      dueAmount: balanceDue > 0 ? String(balanceDue) : '0',
                     });
                   }
                 }}
