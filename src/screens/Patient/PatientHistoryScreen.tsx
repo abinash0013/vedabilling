@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useCallback} from 'react';
+import {useState, useCallback} from 'react';
 import {
   View,
   Text,
@@ -21,6 +21,7 @@ import {
 import {
   getPatientByReg,
   getInvoicesByPatient,
+  getFullInvoice,
   updatePatient,
 } from '../../database';
 import type {Patient, InvoiceSummary} from '../../types';
@@ -55,6 +56,9 @@ function StatusBadge({status}: {status: string}) {
 }
 
 function InvoiceRow({item, isLast, onPress}: any) {
+  const isPartial = item.status === 'Partial';
+  const due = (item.payable ?? 0) - (item.totalPaid ?? 0);
+  const hasPayments = (item.paymentCount ?? 0) > 0;
   return (
     <TouchableOpacity
       activeOpacity={0.7}
@@ -62,10 +66,20 @@ function InvoiceRow({item, isLast, onPress}: any) {
       style={[styles.invoiceRow, isLast && styles.invoiceRowLast]}>
       <View style={styles.invoiceLeft}>
         <Text style={styles.invoiceId}>{item.invoice}</Text>
+        {isPartial && hasPayments && item.payments && (
+          <Text style={[styles.invoiceMeta, {color: COLORS.violet}]}>
+            {item.payments.map((p: {amount: number; method: string}, idx: number) => `P${idx + 1}: ₹${p.amount.toLocaleString('en-IN')}`).join(' · ')}
+          </Text>
+        )}
         <Text style={styles.invoiceMeta}>{item.date}</Text>
       </View>
       <View style={styles.invoiceRight}>
         <Text style={styles.invoiceAmount}>{item.amount}</Text>
+        {isPartial && due > 0 && (
+          <Text style={[styles.invoiceMeta, {color: COLORS.red}]}>
+            ₹{due.toLocaleString('en-IN')} due
+          </Text>
+        )}
         <StatusBadge status={item.status} />
       </View>
     </TouchableOpacity>
@@ -139,19 +153,71 @@ export default function PatientHistoryScreen() {
     }, [loadData]),
   );
 
+  const openInvoice = async (item: InvoiceSummary) => {
+    try {
+      const inv = await getFullInvoice(item.id);
+      if (!inv) {
+        Alert.alert('Error', 'Invoice data not found.');
+        return;
+      }
+      navigation.navigate('EBillGenerated', {
+        showBack: true,
+        pdfPath: inv.pdfPath || '',
+        patient: {name: inv.patientName, reg: inv.patientReg},
+        billing: {
+          invoiceNo: inv.invoiceNo,
+          date: inv.invoiceDate,
+          due: inv.dueDate,
+          type: inv.billingType,
+          service: inv.items.map(i => i.name).join(' + ') || '—',
+          items: inv.items.map(i => ({
+            name: i.name,
+            unitPrice: i.unitPrice,
+            qty: i.qty,
+            unit: i.unit || '',
+            amount: i.unitPrice * i.qty,
+          })),
+        },
+        amount: {
+          total: inv.total,
+          discount: inv.discount,
+          payable: inv.payable,
+          payments: inv.payments.map(p => ({
+            amount: p.amount,
+            method: p.method,
+            date: p.date || '',
+          })),
+          totalPaid: inv.totalPaid,
+          extraPaid: inv.extraPaid,
+          balanceDue: inv.balanceDue,
+          status: inv.status,
+        },
+        note: inv.note,
+        therapist: inv.therapist,
+        paymentReceiveDate: inv.paymentReceiveDate || '',
+      });
+    } catch {
+      Alert.alert('Error', 'Failed to load invoice.');
+    }
+  };
+
   const displayPatient = patientInfo || routePatient;
   const patientName = displayPatient?.name || 'Unknown';
   const patientReg = displayPatient?.reg || '';
 
   const totalInvoiceCount = invoices.length;
-  const paidAmt = invoices
-    .filter(
-      i =>
-        i.status === 'Paid' ||
-        i.status === 'Over Paid' ||
-        i.status === 'Advance Paid',
-    )
-    .reduce((s, i) => s + parseAmt(i.amount), 0);
+  const paidAmt =
+    invoices
+      .filter(
+        i =>
+          i.status === 'Paid' ||
+          i.status === 'Over Paid' ||
+          i.status === 'Advance Paid',
+      )
+      .reduce((s, i) => s + parseAmt(i.amount), 0) +
+    invoices
+      .filter(i => i.status === 'Partial' || i.status === 'Partial Paid')
+      .reduce((s, i) => s + (i.totalPaid ?? 0), 0);
   const dueAmt = invoices
     .filter(
       i =>
@@ -160,7 +226,12 @@ export default function PatientHistoryScreen() {
         i.status === 'Partial Paid' ||
         i.status === 'Partial',
     )
-    .reduce((s, i) => s + parseAmt(i.amount), 0);
+    .reduce((s, i) => {
+      if (i.status === 'Partial Paid' || i.status === 'Partial') {
+        return s + ((i.payable ?? parseAmt(i.amount)) - (i.totalPaid ?? 0));
+      }
+      return s + parseAmt(i.amount);
+    }, 0);
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -242,16 +313,7 @@ export default function PatientHistoryScreen() {
                 key={item.id}
                 item={item}
                 isLast={idx === invoices.length - 1}
-                onPress={() => {
-                  if (item.status === 'Unpaid' || item.status === 'Partial') {
-                    const balanceDue = (item.payable || 0) - (item.totalPaid || 0);
-                    navigation.navigate('NewInvoice', {
-                      patient: displayPatient,
-                      paymentStatus: item.status === 'Unpaid' ? 'Due' : 'Partial Paid',
-                      dueAmount: balanceDue > 0 ? String(balanceDue) : '0',
-                    });
-                  }
-                }}
+                onPress={() => openInvoice(item)}
               />
             ))
           ) : (
@@ -338,7 +400,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingTop: 12,
-    paddingBottom: 18,
+    paddingBottom: 20,
     gap: 12,
   },
   backBtn: {

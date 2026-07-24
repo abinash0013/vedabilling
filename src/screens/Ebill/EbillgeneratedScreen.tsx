@@ -52,6 +52,7 @@ const EMPTY_INV = {
   insuranceClause: '',
   physiotherapist: '',
   note: '',
+  paymentReceiveDate: '',
 };
 
 function DashedDivider() {
@@ -79,6 +80,7 @@ export default function EBillGeneratedScreen({navigation, route}: any) {
     amount: routeAmount,
     note: routeNote,
     therapist: routeTherapist,
+    paymentReceiveDate: routePaymentReceiveDate,
   } = route.params || {};
 
   const [clinicSettings, setClinicSettings] = useState<any>(null);
@@ -138,6 +140,7 @@ export default function EBillGeneratedScreen({navigation, route}: any) {
       clinicSettings?.physiotherapist ||
       'Dr. Yash Pratihasta, PT',
     note: loadedInvoice.note,
+    paymentReceiveDate: loadedInvoice.paymentReceiveDate || '',
   };
 
   const inv = routeBilling
@@ -169,6 +172,7 @@ export default function EBillGeneratedScreen({navigation, route}: any) {
           clinicSettings?.physiotherapist ||
           'Dr. Yash Pratihasta, PT',
         note,
+        paymentReceiveDate: routePaymentReceiveDate || '',
       }
     : sqlInv || EMPTY_INV;
 
@@ -213,41 +217,42 @@ export default function EBillGeneratedScreen({navigation, route}: any) {
       '<html><head><style>',
       '@page{margin:0}',
       '*{margin:0;padding:0;box-sizing:border-box}',
-      'body{font-family:Helvetica Neue,Helvetica,Arial,sans-serif;color:#1A2E2B;font-size:12px;line-height:1.5;width:100%}',
-      '.page{padding:0 20px 20px}',
-      '.clinic-hdr{background:#2E7D72;padding:14px 20px;display:flex;gap:10px;align-items:flex-start}',
-      '.logo{width:52px;height:52px;background:#FFF;display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0}',
+      'body{font-family:Helvetica Neue,Helvetica,Arial,sans-serif;color:#1A2E2B;font-size:24px;line-height:1.5;width:100%}',
+      '.page{padding:20px 20px 20px}',
+      '.clinic-hdr{background:#2E7D72;padding:18px 20px;display:flex;gap:10px;align-items:flex-start;border-radius:5px 5px 0 0}',
+      '.logo{width:58px;height:58px;background:#FFF;display:flex;align-items:center;justify-content:center;font-size:34px;flex-shrink:0}',
       '.clinic-info{flex:1}',
-      '.clinic-name{font-size:22px;font-weight:800;color:#FFF;letter-spacing:-0.3px}',
-      '.tagline{font-size:12px;color:rgba(255,255,255,0.8);font-style:italic;margin:3px 0 0}',
-      '.contact{font-size:11px;color:rgba(255,255,255,0.7);margin:6px 0 0;line-height:16px}',
-      '.label-row{background:#1F5C56;padding:8px 20px;display:flex;justify-content:space-between;align-items:center}',
-      '.label{font-size:11px;font-weight:800;color:#FFF;letter-spacing:1.5px}',
-      '.inv-no{font-size:13px;font-weight:700;color:rgba(255,255,255,0.9)}',
-      '.dates{padding:10px 20px;display:flex;justify-content:space-between;border-bottom:1px solid #E2EDEB}',
-      '.date-text{font-size:12px;color:#1A2E2B;font-weight:500}',
-      '.patient-box{padding:10px 20px;border-bottom:1px solid #E2EDEB}',
-      '.patient-name{font-size:16px;font-weight:800;color:#1A2E2B}',
-      '.patient-id{font-size:12px;color:#7A9490;margin:4px 0 0}',
-      'table{width:100%;border-collapse:collapse;margin:10px 20px;width:calc(100% - 40px)}',
-      'th{padding:8px 10px;text-align:left;font-size:11px;font-weight:700;color:#2E7D72;letter-spacing:0.5px;background:#E8F2F0;border-bottom:2px solid #2E7D72}',
+      '.clinic-name{font-size:34px;font-weight:800;color:#FFF;letter-spacing:-0.3px}',
+      '.tagline{font-size:22px;color:rgba(255,255,255,0.8);font-style:italic;margin:3px 0 0}',
+      '.contact{font-size:20px;color:rgba(255,255,255,0.7);margin:6px 0 0;line-height:28px}',
+      '.label-row{background:#1F5C56;padding:10px 20px;display:flex;justify-content:space-between;align-items:center}',
+      '.label{font-size:20px;font-weight:800;color:#FFF;letter-spacing:1.5px}',
+      '.inv-no{font-size:24px;font-weight:700;color:rgba(255,255,255,0.9)}',
+      '.dates{padding:12px 20px;display:flex;justify-content:space-between;border-bottom:1px solid #E2EDEB}',
+      '.date-text{font-size:24px;color:#1A2E2B;font-weight:500}',
+      '.patient-box{padding:12px 20px;border-bottom:1px solid #E2EDEB}',
+      '.patient-name{font-size:28px;font-weight:800;color:#1A2E2B}',
+      '.patient-id{font-size:20px;color:#7A9490;margin:4px 0 0}',
+      'table{width:100%;border-collapse:collapse;margin:12px 20px;width:calc(100% - 40px)}',
+      'th{padding:10px 12px;text-align:left;font-size:20px;font-weight:700;color:#2E7D72;letter-spacing:0.5px;background:#E8F2F0;border-bottom:2px solid #2E7D72}',
       '.amt-cell{text-align:right}',
       '.center{text-align:center}',
-      'td{padding:8px 10px;font-size:13px;color:#1A2E2B;border-bottom:1px solid #E2EDEB}',
-      '.amount-box{margin:10px 20px;border:1px solid #E2EDEB;padding:12px 16px}',
-      '.amt-row{display:flex;justify-content:space-between;padding:6px 0}',
-      '.amt-label{font-size:13px;color:#7A9490}',
-      '.amt-val{font-size:13px;color:#1A2E2B}',
-      '.amt-bold{font-size:16px;font-weight:800;color:#1A2E2B}',
+      'td{padding:10px 12px;font-size:24px;color:#1A2E2B;border-bottom:1px solid #E2EDEB}',
+      '.amount-box{margin:12px 20px;border:1px solid #E2EDEB;padding:14px 18px}',
+      '.amt-row{display:flex;justify-content:space-between;padding:7px 0}',
+      '.amt-label{font-size:24px;color:#7A9490}',
+      '.amt-val{font-size:24px;color:#1A2E2B}',
+      '.amt-bold{font-size:28px;font-weight:800;color:#1A2E2B}',
       '.hr{border:none;border-top:1px solid #C8DEDA;margin:10px 0}',
-      '.status-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0}',
-      '.badge{padding:4px 14px;font-size:12px;font-weight:700}',
-      '.note-box{margin:10px 20px;padding:10px 14px;border:1px solid #E2EDEB}',
-      '.note-label{font-size:11px;font-weight:700;color:#1A7866;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px}',
-      '.note-text{font-size:13px;color:#1A2E2B;line-height:20px}',
-      '.insurance{margin:10px 20px;padding:10px 14px;border:1px solid #E2EDEB;background:#FEF8EC}',
-      '.ins-text{font-size:12px;color:#7A5C10;line-height:20px;font-style:italic}',
-      '.footer{font-size:11px;color:#9AAFAC;text-align:center;padding:10px 20px;line-height:18px;border-top:1px solid #E2EDEB;margin:4px 20px 0}',
+      '.dashed{height:1px;border-top:1px dashed #C8DEDA;margin:8px 0}',
+      '.status-row{display:flex;justify-content:space-between;align-items:center;padding:7px 0}',
+      '.badge{padding:5px 16px;font-size:23px;font-weight:700}',
+      '.note-box{margin:12px 20px;padding:12px 16px;border:1px solid #E2EDEB}',
+      '.note-label{font-size:20px;font-weight:700;color:#1A7866;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px}',
+      '.note-text{font-size:24px;color:#1A2E2B;line-height:32px}',
+      '.insurance{margin:12px 20px;padding:12px 16px;border:1px solid #E2EDEB;background:#FEF8EC}',
+      '.ins-text{font-size:20px;color:#7A5C10;line-height:32px;font-style:italic}',
+      '.footer{font-size:20px;color:#9AAFAC;text-align:center;padding:12px 20px;line-height:30px;border-top:1px solid #E2EDEB;margin:4px 20px 0}',
       '</style></head><body>',
       '<div class="page">',
 
@@ -276,6 +281,11 @@ export default function EBillGeneratedScreen({navigation, route}: any) {
       '<div class="dates">',
       '<span class="date-text">Invoice Date: ' + inv.invoiceDate + '</span>',
       '<span class="date-text">Due Date: ' + inv.dueDate + '</span></div>',
+      inv.paymentReceiveDate && inv.paymentStatus !== 'Due'
+        ? '<div class="dates" style="border-bottom:1px solid #E2EDEB;padding-top:2px"><span class="date-text">Payment Receive Date: ' +
+          inv.paymentReceiveDate +
+          '</span></div>'
+        : '',
 
       '<div class="patient-box">',
       '<div class="patient-name">' + inv.patient.name + '</div>',
@@ -304,19 +314,49 @@ export default function EBillGeneratedScreen({navigation, route}: any) {
       '<div class="amt-row"><span class="amt-bold">Payable Amount</span><span class="amt-bold">' +
         fmt(inv.payable) +
         '</span></div>',
-      '<div class="amt-row"><span class="amt-label">Total Paid</span><span class="amt-val">' +
-        fmt(inv.totalPaid) +
-        '</span></div>',
-      inv.totalPaid > 0
-        ? '<div class="amt-row"><span class="amt-label">' +
-          (inv.billingType === 'Package' ? 'Advance Paid' : 'Extra Paid') +
-          '</span><span class="amt-val">' +
-          fmt(inv.billingType === 'Package' ? inv.totalPaid : inv.extraPaid) +
-          '</span></div>'
-        : '',
-      '<div class="amt-row"><span class="amt-label">Balance Due</span><span class="amt-val">' +
-        fmt(inv.balanceDue) +
-        '</span></div>',
+      ...(inv.paymentStatus === 'Partial Paid' && inv.payments
+        ? inv.payments.map(
+            (p: any, i: number) =>
+              '<div class="amt-row"><span class="amt-label">Payment ' +
+              (i + 1) +
+              ' — ' +
+              p.method +
+              (p.date ? ' (' + p.date + ')' : '') +
+              '</span><span class="amt-val">' +
+              fmt(p.amount) +
+              '</span></div>',
+          )
+        : []),
+      ...(inv.paymentStatus === 'Partial Paid'
+        ? [
+            '<div class="dashed"></div>',
+            '<div class="amt-row"><span class="amt-label">Total Paid</span><span class="amt-val">' +
+              fmt(inv.totalPaid) +
+              '</span></div>',
+            '<div class="amt-row"><span class="amt-label">Balance Due</span><span class="amt-val">' +
+              fmt(inv.payable) +
+              ' − ' +
+              fmt(inv.totalPaid) +
+              ' = ' +
+              fmt(inv.balanceDue) +
+              '</span></div>',
+          ]
+        : [
+            ...inv.payments.map(
+              (p: any, i: number) =>
+                '<div class="amt-row"><span class="amt-label">Payment ' +
+                (i + 1) +
+                ' — ' +
+                p.method +
+                (p.date ? ' (' + p.date + ')' : '') +
+                '</span><span class="amt-val">' +
+                fmt(p.amount) +
+                '</span></div>',
+            ),
+            '<div class="amt-row"><span class="amt-label">Balance Due</span><span class="amt-val">' +
+              fmt(inv.balanceDue) +
+              '</span></div>',
+          ]),
       '<div class="status-row"><span class="amt-label">Payment Status</span><span class="badge" style="' +
         badgeStyle(inv.paymentStatus) +
         '">' +
@@ -357,37 +397,39 @@ export default function EBillGeneratedScreen({navigation, route}: any) {
       fileName: `Invoice_${inv.no.replace(
         /\//g,
         '-',
-      )}_${dd}-${mm} & time(${hh} ${min} ${ss})`,
+      )}_${dd}-${mm}_${hh}:${min}:${ss}`,
     });
 
     if (!pdf.filePath) {
       throw new Error('Failed to generate PDF.');
     }
 
+    const desiredName = `Invoice_${inv.no.replace(
+      /\//g,
+      '-',
+    )}_${dd}-${mm}_${hh}:${min}:${ss}.pdf`;
+    const targetPath = pdf.filePath.replace(/[^/\\]+$/, desiredName);
     try {
-      await updateInvoicePdfPath(inv.no, pdf.filePath);
+      if (pdf.filePath !== targetPath) {
+        await RNFS.moveFile(pdf.filePath, targetPath);
+        return targetPath;
+      }
+    } catch {
+      // rename failed, use original
+    }
+
+    try {
+      await updateInvoicePdfPath(inv.no, targetPath);
     } catch {
       // silent
     }
 
-    return pdf.filePath;
-  };
-
-  const ensurePdf = async (): Promise<string> => {
-    if (pdfPath) {
-      try {
-        const exists = await RNFS.exists(pdfPath.replace('file://', ''));
-        if (exists) return pdfPath;
-      } catch {
-        // file check failed, regenerate
-      }
-    }
-    return await generatePdf();
+    return targetPath;
   };
 
   const handleShare = async () => {
     try {
-      const path = await ensurePdf();
+      const path = await generatePdf();
       const shareUrl = path.startsWith('file://') ? path : `file://${path}`;
       await Share.open({
         title: 'Share Invoice',
@@ -471,6 +513,13 @@ export default function EBillGeneratedScreen({navigation, route}: any) {
             </Text>
             <Text style={styles.billDateText}>Due Date: {inv.dueDate}</Text>
           </View>
+          {/* {inv.paymentReceiveDate && inv.paymentStatus !== 'Due' ? (
+            <View style={styles.billDatesRow}>
+              <Text style={styles.billDateText}>
+                Payment Receive Date: {inv.paymentReceiveDate}
+              </Text>
+            </View>
+          ) : null} */}
 
           {/* Patient */}
           <View style={styles.patientBox}>
@@ -569,39 +618,66 @@ export default function EBillGeneratedScreen({navigation, route}: any) {
                 ₹{inv.payable.toLocaleString('en-IN')}
               </Text>
             </View>
-            <View style={styles.amountRow}>
-              <Text style={styles.amountLabel}>Total Paid</Text>
-              <Text style={styles.amountValue}>
-                ₹{inv.totalPaid.toLocaleString('en-IN')}
-              </Text>
-            </View>
-            {inv.totalPaid > 0 ? (
-              <View style={styles.amountRow}>
-                <Text style={styles.amountLabel}>
-                  {inv.billingType === 'Package'
-                    ? 'Advance Paid'
-                    : 'Extra Paid'}
-                </Text>
-                <Text style={styles.amountValue}>
-                  ₹
-                  {(inv.billingType === 'Package'
-                    ? inv.totalPaid
-                    : inv.extraPaid
-                  ).toLocaleString('en-IN')}
-                </Text>
-              </View>
-            ) : null}
-            <View style={styles.amountRow}>
-              <Text style={styles.amountLabel}>Balance Due</Text>
-              <Text style={styles.amountValue}>
-                ₹{inv.balanceDue.toLocaleString('en-IN')}
-              </Text>
-            </View>
+            {inv.paymentStatus === 'Partial Paid' &&
+              inv.payments?.map((p: any, i: number) => (
+                <View key={i} style={styles.amountRow}>
+                  <Text style={styles.amountLabel}>
+                    Payment {i + 1} — {p.method}
+                    {p.date ? ` (${p.date})` : ''}
+                  </Text>
+                  <Text style={styles.amountValue}>
+                    ₹{p.amount.toLocaleString('en-IN')}
+                  </Text>
+                </View>
+              ))}
+            {inv.paymentStatus === 'Partial Paid' && (
+              <>
+                <DashedDivider />
+                <View style={styles.amountRow}>
+                  <Text style={styles.amountLabel}>Total Paid</Text>
+                  <Text style={styles.amountValue}>
+                    ₹{inv.totalPaid.toLocaleString('en-IN')}
+                  </Text>
+                </View>
+                <View style={styles.amountRow}>
+                  <Text style={styles.amountLabel}>Balance Due</Text>
+                  <Text style={styles.amountValue}>
+                    ₹{inv.payable.toLocaleString('en-IN')} − ₹
+                    {inv.totalPaid.toLocaleString('en-IN')} = ₹
+                    {inv.balanceDue.toLocaleString('en-IN')}
+                  </Text>
+                </View>
+              </>
+            )}
+            {inv.paymentStatus !== 'Partial Paid' && (
+              <>
+                {inv.payments?.map((p: any, i: number) => (
+                  <View key={i} style={styles.amountRow}>
+                    <Text style={styles.amountLabel}>
+                      Payment {i + 1} — {p.method}
+                      {p.date ? ` (${p.date})` : ''}
+                    </Text>
+                    <Text style={styles.amountValue}>
+                      ₹{p.amount.toLocaleString('en-IN')}
+                    </Text>
+                  </View>
+                ))}
+                <View style={styles.amountRow}>
+                  <Text style={styles.amountLabel}>Balance Due</Text>
+                  <Text style={styles.amountValue}>
+                    ₹{inv.balanceDue.toLocaleString('en-IN')}
+                  </Text>
+                </View>
+              </>
+            )}
             <View style={styles.amountStatusRow}>
               <Text style={styles.amountLabel}>Payment Status</Text>
               <View
                 style={[
                   styles.dueBadge,
+                  inv.paymentStatus === 'Paid' && {
+                    backgroundColor: COLORS.greenLight,
+                  },
                   inv.paymentStatus === 'Over Paid' && {
                     backgroundColor: COLORS.cyanLight,
                   },
@@ -615,6 +691,9 @@ export default function EBillGeneratedScreen({navigation, route}: any) {
                 <Text
                   style={[
                     styles.dueBadgeText,
+                    inv.paymentStatus === 'Paid' && {
+                      color: COLORS.green,
+                    },
                     inv.paymentStatus === 'Over Paid' && {
                       color: COLORS.cyan,
                     },
@@ -712,7 +791,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingTop: 12,
-    paddingBottom: 18,
+    paddingBottom: 20,
     gap: 12,
   },
   backBtn: {

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import {useState, useCallback} from 'react';
 import {
   View,
   Text,
@@ -7,68 +7,106 @@ import {
   TouchableOpacity,
   StyleSheet,
   SafeAreaView,
-  StatusBar,
   Modal,
   Alert,
   KeyboardAvoidingView,
   Platform,
-} from "react-native";
-import { useNavigation, useFocusEffect } from "@react-navigation/native";
-import { getAllPatients, insertPatient } from "../../database";
-import type { PatientListItem, NewPatientInput } from "../../types";
+  StatusBar,
+} from 'react-native';
+import {useNavigation, useFocusEffect} from '@react-navigation/native';
+import {
+  ChevronRight,
+  UserPlus,
+  FileText,
+  Phone,
+  MapPin,
+} from 'lucide-react-native';
+import {getAllPatients, insertPatient} from '../../database';
+import type {PatientListItem, NewPatientInput} from '../../types';
+import SearchBar from './../../components/SearchBar';
+import SkeletonLoader from './../../components/SkeletonLoader';
 
-import BASE from "./../../constants/colors";
+import BASE from './../../constants/colors';
 
-const PLUS_BTN = "rgba(255,255,255,0.25)";
+const PLUS_BTN = 'rgba(255,255,255,0.25)';
 const COLORS = BASE;
 
-function Avatar({ name }: any) {
-  const parts = (name || "").trim().split(/\s+/);
+function Avatar({name, size = 48}: {name: string; size?: number}) {
+  const parts = (name || '').trim().split(/\s+/);
   const initials =
     parts.length > 1
-      ? (parts[0][0] || "") + (parts[parts.length - 1][0] || "")
-      : parts[0]?.[0] || "?";
+      ? (parts[0][0] || '') + (parts[parts.length - 1][0] || '')
+      : parts[0]?.[0] || '?';
   return (
-    <View style={styles.avatar}>
-      <Text style={styles.avatarText}>{initials.toUpperCase()}</Text>
+    <View
+      style={[
+        styles.avatar,
+        {width: size, height: size, borderRadius: size / 2},
+      ]}>
+      <Text style={[styles.avatarText, {fontSize: size * 0.36}]}>
+        {initials.toUpperCase()}
+      </Text>
     </View>
   );
 }
 
-function PatientRow({ item, isLast, onPress }: any) {
+function PatientCard({
+  item,
+  onPress,
+}: {
+  item: PatientListItem;
+  onPress: () => void;
+}) {
   return (
-    <TouchableOpacity
-      activeOpacity={0.7}
-      style={[styles.row, isLast && styles.rowLast]}
-      onPress={onPress}
-    >
-      <Avatar name={item.name} />
-      <View style={styles.rowInfo}>
-        <Text style={styles.patientName}>{item.name}</Text>
-        <Text style={styles.patientMeta}>
-          {item.reg} · {item.invoices} invoices
-        </Text>
+    <TouchableOpacity activeOpacity={0.7} style={styles.card} onPress={onPress}>
+      <View style={styles.cardAccent} />
+      <View style={styles.cardBody}>
+        <View style={styles.cardTop}>
+          <Avatar name={item.name} />
+          <View style={styles.cardInfo}>
+            <Text style={styles.patientName} numberOfLines={1}>
+              {item.name}
+            </Text>
+            <Text style={styles.patientReg}>{item.reg}</Text>
+          </View>
+          <ChevronRight size={20} color={COLORS.textMuted} strokeWidth={2.5} />
+        </View>
+
+        <View style={styles.cardDivider} />
+
+        <View style={styles.cardBottom}>
+          <View style={styles.cardChip}>
+            <FileText size={13} color={COLORS.teal} strokeWidth={2.5} />
+            <Text style={styles.cardChipText}>
+              {item.invoices} {item.invoices === 1 ? 'invoice' : 'invoices'}
+            </Text>
+          </View>
+          <Text style={styles.cardDate}>{item.date}</Text>
+        </View>
       </View>
-      <Text style={styles.dateText}>{item.date}</Text>
     </TouchableOpacity>
   );
 }
 
 export default function PatientsScreen() {
   const navigation = useNavigation<any>();
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState('');
   const [patients, setPatients] = useState<PatientListItem[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
-  const [newName, setNewName] = useState("");
-  const [newPhone, setNewPhone] = useState("");
-  const [newAddress, setNewAddress] = useState("");
-  const [newRegNumber, setNewRegNumber] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [newName, setNewName] = useState('');
+  const [newPhone, setNewPhone] = useState('');
+  const [newAddress, setNewAddress] = useState('');
+  const [newRegNumber, setNewRegNumber] = useState('');
 
   const loadPatients = useCallback(async () => {
     try {
       const list = await getAllPatients();
       setPatients(list);
-    } catch {}
+    } catch {
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useFocusEffect(
@@ -78,7 +116,7 @@ export default function PatientsScreen() {
   );
 
   const filtered = patients.filter(
-    (p) =>
+    p =>
       p.name.toLowerCase().includes(query.toLowerCase()) ||
       p.reg.toLowerCase().includes(query.toLowerCase()),
   );
@@ -86,12 +124,12 @@ export default function PatientsScreen() {
   const handleAdd = async () => {
     const trimmed = newName.trim();
     if (!trimmed) {
-      Alert.alert("Error", "Please enter a patient name.");
+      Alert.alert('Error', 'Please enter a patient name.');
       return;
     }
-    const phoneDigits = newPhone.replace(/\D/g, "");
+    const phoneDigits = newPhone.replace(/\D/g, '');
     if (newPhone.trim() && phoneDigits.length !== 10) {
-      Alert.alert("Error", "Phone number must be exactly 10 digits.");
+      Alert.alert('Error', 'Phone number must be exactly 10 digits.');
       return;
     }
     try {
@@ -105,19 +143,19 @@ export default function PatientsScreen() {
         reg,
       });
       await loadPatients();
-      setNewName("");
-      setNewPhone("");
-      setNewAddress("");
-      setNewRegNumber("");
+      setNewName('');
+      setNewPhone('');
+      setNewAddress('');
+      setNewRegNumber('');
       setModalVisible(false);
     } catch (error: any) {
-      Alert.alert("Error", error?.message || "Failed to add patient.");
+      Alert.alert('Error', error?.message || 'Failed to add patient.');
     }
   };
 
   return (
     <SafeAreaView style={styles.safe}>
-      {/* <StatusBar barStyle="light-content" backgroundColor={COLORS.teal} /> */}
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.teal} />
 
       {/* Header */}
       <View style={styles.header}>
@@ -128,8 +166,7 @@ export default function PatientsScreen() {
         <TouchableOpacity
           style={styles.plusBtn}
           activeOpacity={0.8}
-          onPress={() => setModalVisible(true)}
-        >
+          onPress={() => setModalVisible(true)}>
           <Text style={styles.plusIcon}>+</Text>
         </TouchableOpacity>
       </View>
@@ -137,38 +174,51 @@ export default function PatientsScreen() {
       {/* Body */}
       <View style={styles.body}>
         {/* Search */}
-        <View style={styles.searchWrapper}>
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search by name or patient ID..."
-            placeholderTextColor={COLORS.textSecondary}
-            value={query}
-            onChangeText={setQuery}
-            returnKeyType="search"
-            clearButtonMode="while-editing"
-          />
-        </View>
+        <SearchBar
+          value={query}
+          onChangeText={setQuery}
+          placeholder="Search by name or patient ID..."
+          style={styles.searchBar}
+        />
 
         {/* Patient list */}
-        <View style={styles.listCard}>
+        {loading ? (
+          <SkeletonLoader count={5} />
+        ) : (
           <FlatList
             data={filtered}
-            keyExtractor={(item) => item.reg}
-            scrollEnabled={false}
-            renderItem={({ item, index }) => (
-              <PatientRow
+            keyExtractor={item => item.reg}
+            style={{flex: 1}}
+            contentContainerStyle={{
+              paddingHorizontal: 16,
+              gap: 12,
+              paddingVertical: 4,
+              paddingBottom: 90,
+              flexGrow: filtered.length === 0 ? 1 : undefined,
+            }}
+            renderItem={({item}) => (
+              <PatientCard
                 item={item}
-                isLast={index === filtered.length - 1}
                 onPress={() =>
-                  navigation.navigate("PatientHistory", { patient: item })
+                  navigation.navigate('PatientHistory', {patient: item})
                 }
               />
             )}
             ListEmptyComponent={
-              <Text style={styles.emptyText}>No patients found.</Text>
+              <View style={styles.emptyWrap}>
+                <View style={styles.emptyIcon}>
+                  <FileText size={40} color={COLORS.dashed} strokeWidth={1.5} />
+                </View>
+                <Text style={styles.emptyTitle}>No patients found</Text>
+                <Text style={styles.emptySub}>
+                  {query.trim()
+                    ? 'Try a different search term'
+                    : 'Tap + to add your first patient'}
+                </Text>
+              </View>
             }
           />
-        </View>
+        )}
       </View>
 
       {/* Add Patient Modal */}
@@ -176,12 +226,10 @@ export default function PatientsScreen() {
         visible={modalVisible}
         transparent
         animationType="fade"
-        onRequestClose={() => setModalVisible(false)}
-      >
+        onRequestClose={() => setModalVisible(false)}>
         <KeyboardAvoidingView
           style={styles.modalOverlay}
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-        >
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Add New Patient</Text>
             <TextInput
@@ -223,10 +271,9 @@ export default function PatientsScreen() {
               <TouchableOpacity
                 style={styles.cancelBtn}
                 onPress={() => {
-                  setNewName("");
+                  setNewName('');
                   setModalVisible(false);
-                }}
-              >
+                }}>
                 <Text style={styles.cancelBtnText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.addBtn} onPress={handleAdd}>
@@ -249,16 +296,16 @@ const styles = StyleSheet.create({
   // Header
   header: {
     backgroundColor: COLORS.teal,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingTop: 12,
     paddingBottom: 20,
   },
   headerTitle: {
     fontSize: 24,
-    fontWeight: "800",
+    fontWeight: '800',
     color: COLORS.headerText,
     letterSpacing: -0.5,
   },
@@ -272,122 +319,161 @@ const styles = StyleSheet.create({
     height: 42,
     borderRadius: 21,
     backgroundColor: PLUS_BTN,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   plusIcon: {
     fontSize: 24,
-    color: "#FFFFFF",
+    color: '#FFFFFF',
     lineHeight: 28,
-    fontWeight: "300",
+    fontWeight: '300',
   },
 
   // Body
   body: {
     flex: 1,
     backgroundColor: COLORS.bg,
-    borderTopLeftRadius: 0,
-    paddingHorizontal: 16,
-    paddingTop: 20,
   },
 
   // Search
-  searchWrapper: {
-    marginBottom: 16,
-  },
-  searchInput: {
-    backgroundColor: COLORS.card,
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 14,
-    color: COLORS.textPrimary,
-    borderWidth: 1,
-    borderColor: COLORS.border,
+  searchBar: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    marginBottom: 6,
   },
 
   // List card
   listCard: {
-    backgroundColor: COLORS.card,
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    shadowColor: "#000",
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
-  },
-
-  // Row
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
     gap: 12,
   },
-  rowLast: {
-    borderBottomWidth: 0,
+
+  // Patient Card
+  card: {
+    flexDirection: 'row',
+    backgroundColor: COLORS.card,
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    shadowOffset: {width: 0, height: 3},
+    elevation: 3,
+  },
+  cardAccent: {
+    width: 5,
+    backgroundColor: COLORS.teal,
+    borderTopLeftRadius: 16,
+    borderBottomLeftRadius: 16,
+  },
+  cardBody: {
+    flex: 1,
+    padding: 16,
+    gap: 12,
+  },
+  cardTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  cardInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  cardDivider: {
+    height: 1,
+    backgroundColor: COLORS.border,
+    marginHorizontal: 0,
+  },
+  cardBottom: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  cardChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: COLORS.tealBg,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
+  },
+  cardChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: COLORS.teal,
+  },
+  cardDate: {
+    fontSize: 12,
+    color: COLORS.textMuted,
   },
 
   // Avatar
   avatar: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    backgroundColor: COLORS.tealLight,
-    alignItems: "center",
-    justifyContent: "center",
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: COLORS.teal,
+    alignItems: 'center',
+    justifyContent: 'center',
     flexShrink: 0,
   },
   avatarText: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: COLORS.teal,
-    letterSpacing: 0.5,
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 
   // Info
-  rowInfo: {
-    flex: 1,
-    gap: 3,
-  },
   patientName: {
-    fontSize: 15,
-    fontWeight: "700",
+    fontSize: 16,
+    fontWeight: '700',
     color: COLORS.textPrimary,
-    letterSpacing: -0.2,
+    letterSpacing: -0.3,
   },
-  patientMeta: {
+  patientReg: {
     fontSize: 12,
     color: COLORS.textSecondary,
-  },
-
-  // Date
-  dateText: {
-    fontSize: 13,
-    color: COLORS.textSecondary,
-    flexShrink: 0,
+    fontWeight: '500',
   },
 
   // Empty
-  emptyText: {
-    textAlign: "center",
+  emptyWrap: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 40,
+    gap: 8,
+  },
+  emptyIcon: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: COLORS.tealBg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  emptyTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: COLORS.textPrimary,
+  },
+  emptySub: {
+    fontSize: 13,
     color: COLORS.textSecondary,
-    paddingVertical: 24,
-    fontSize: 14,
+    textAlign: 'center',
   },
 
   // Reg row
   regRow: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 4,
   },
   regPrefix: {
     fontSize: 15,
-    fontWeight: "700",
+    fontWeight: '700',
     color: COLORS.textSecondary,
     paddingVertical: 12,
   },
@@ -398,20 +484,20 @@ const styles = StyleSheet.create({
   // Modal
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    justifyContent: "center",
-    alignItems: "center",
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   modalContent: {
     backgroundColor: COLORS.card,
     borderRadius: 16,
     padding: 24,
-    width: "85%",
+    width: '85%',
     gap: 16,
   },
   modalTitle: {
     fontSize: 18,
-    fontWeight: "700",
+    fontWeight: '700',
     color: COLORS.textPrimary,
   },
   modalInput: {
@@ -425,7 +511,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
   },
   modalActions: {
-    flexDirection: "row",
+    flexDirection: 'row',
     gap: 10,
   },
   cancelBtn: {
@@ -433,11 +519,11 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 12,
     backgroundColor: COLORS.bg,
-    alignItems: "center",
+    alignItems: 'center',
   },
   cancelBtnText: {
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: '600',
     color: COLORS.textSecondary,
   },
   addBtn: {
@@ -445,11 +531,11 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 12,
     backgroundColor: COLORS.teal,
-    alignItems: "center",
+    alignItems: 'center',
   },
   addBtnText: {
     fontSize: 14,
-    fontWeight: "700",
-    color: "#FFFFFF",
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 });

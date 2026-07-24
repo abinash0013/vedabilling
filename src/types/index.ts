@@ -25,6 +25,24 @@ export interface InvoiceItem {
 export interface Payment {
   amount: number;
   method: string;
+  date: string;
+}
+
+export interface PaymentReceipt {
+  id: number;
+  invoiceId: string;
+  invoiceNo: string;
+  patientName: string;
+  patientReg: string;
+  amount: number;
+  method: string;
+  invoiceDate: string;
+  invoiceStatus: string;
+  payable: number;
+  totalPaid: number;
+  paymentCount: number;
+  paymentIndex: number;
+  paymentDate: string;
 }
 
 export interface Invoice {
@@ -46,6 +64,7 @@ export interface Invoice {
   balanceDue: number;
   status: string;
   note: string;
+  paymentReceiveDate?: string;
   pdfPath?: string;
   createdAt: string;
   updatedAt: string;
@@ -60,6 +79,8 @@ export interface InvoiceSummary {
   amount: string;
   payable?: number;
   totalPaid?: number;
+  paymentCount?: number;
+  payments?: {amount: number; method: string}[];
   status: string;
   rawStatus?: string;
   date: string;

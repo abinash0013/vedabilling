@@ -9,6 +9,7 @@ import type {
   PatientListItem,
   DashboardStats,
   ClinicSettings,
+  PaymentReceipt,
 } from '../types';
 
 SQLite.enablePromise(true);
@@ -52,6 +53,7 @@ async function initTables(database: SQLite.SQLiteDatabase): Promise<void> {
       balance_due REAL NOT NULL DEFAULT 0,
       status TEXT NOT NULL DEFAULT 'Due',
       note TEXT DEFAULT '',
+      payment_receive_date TEXT DEFAULT '',
       pdf_path TEXT DEFAULT '',
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
@@ -93,6 +95,24 @@ async function initTables(database: SQLite.SQLiteDatabase): Promise<void> {
       insurance_clause TEXT NOT NULL DEFAULT ''
     )
   `);
+
+  // Migration: add payment_receive_date column if missing
+  try {
+    await database.executeSql(
+      `ALTER TABLE invoices ADD COLUMN payment_receive_date TEXT DEFAULT ''`,
+    );
+  } catch {
+    // column already exists
+  }
+
+  // Migration: add date column to payments if missing
+  try {
+    await database.executeSql(
+      `ALTER TABLE payments ADD COLUMN date TEXT DEFAULT ''`,
+    );
+  } catch {
+    // column already exists
+  }
 }
 
 export async function closeDatabase(): Promise<void> {
@@ -239,8 +259,8 @@ export async function insertInvoice(invoice: Invoice): Promise<void> {
     `INSERT INTO invoices
       (id, invoice_no, invoice_date, due_date, therapist, patient_reg, patient_name,
        billing_type, total, discount, payable, total_paid, extra_paid, balance_due,
-       status, note, pdf_path, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       status, note, payment_receive_date, pdf_path, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       invoice.id || '',
       invoice.invoiceNo || '',
@@ -258,6 +278,7 @@ export async function insertInvoice(invoice: Invoice): Promise<void> {
       invoice.balanceDue || 0,
       invoice.status || 'Due',
       invoice.note || '',
+      invoice.paymentReceiveDate || '',
       invoice.pdfPath || '',
       invoice.createdAt || now,
       invoice.updatedAt || now,
@@ -277,9 +298,9 @@ export async function insertInvoice(invoice: Invoice): Promise<void> {
   if (invoice.payments) {
     for (const payment of invoice.payments) {
       await database.executeSql(
-        `INSERT INTO payments (invoice_id, amount, method)
-         VALUES (?, ?, ?)`,
-        [invoice.id, payment.amount || 0, payment.method || 'Cash'],
+        `INSERT INTO payments (invoice_id, amount, method, date)
+         VALUES (?, ?, ?, ?)`,
+        [invoice.id, payment.amount || 0, payment.method || 'Cash', payment.date || ''],
       );
     }
   }
@@ -288,9 +309,12 @@ export async function insertInvoice(invoice: Invoice): Promise<void> {
 export async function getAllInvoices(): Promise<InvoiceSummary[]> {
   const database = await getDatabase();
   const [results] = await database.executeSql(`
-    SELECT id, invoice_no, patient_name, patient_reg, billing_type, payable, total_paid, status, invoice_date
-    FROM invoices
-    ORDER BY created_at DESC
+    SELECT i.id, i.invoice_no, i.patient_name, i.patient_reg, i.billing_type, i.payable, i.total_paid, i.status, i.invoice_date,
+      COUNT(p.id) AS payment_count
+    FROM invoices i
+    LEFT JOIN payments p ON p.invoice_id = i.id
+    GROUP BY i.id
+    ORDER BY i.created_at DESC
   `);
   const items: InvoiceSummary[] = [];
   for (let i = 0; i < results.rows.length; i++) {
@@ -301,6 +325,17 @@ export async function getAllInvoices(): Promise<InvoiceSummary[]> {
     if (paid >= payable) displayStatus = 'Paid';
     else if (paid > 0) displayStatus = 'Partial';
     else displayStatus = 'Unpaid';
+    let invoicePayments: {amount: number; method: string}[] = [];
+    if (row.payment_count > 0) {
+      const [payResults] = await database.executeSql(
+        'SELECT amount, method FROM payments WHERE invoice_id = ? ORDER BY id ASC',
+        [row.id],
+      );
+      for (let j = 0; j < payResults.rows.length; j++) {
+        const pr = payResults.rows.item(j);
+        invoicePayments.push({amount: pr.amount || 0, method: pr.method || 'Cash'});
+      }
+    }
     items.push({
       id: row.id,
       name: row.patient_name,
@@ -310,6 +345,8 @@ export async function getAllInvoices(): Promise<InvoiceSummary[]> {
       amount: `₹${Number(payable).toLocaleString('en-IN')}`,
       payable,
       totalPaid: paid,
+      paymentCount: row.payment_count || 0,
+      payments: invoicePayments,
       status: displayStatus,
       date: row.invoice_date || '',
     });
@@ -320,9 +357,13 @@ export async function getAllInvoices(): Promise<InvoiceSummary[]> {
 export async function getInvoicesByPatient(reg: string): Promise<InvoiceSummary[]> {
   const database = await getDatabase();
   const [results] = await database.executeSql(
-    `SELECT id, invoice_no, patient_name, patient_reg, billing_type, payable, total_paid, status, invoice_date
-     FROM invoices WHERE patient_reg = ?
-     ORDER BY created_at DESC`,
+    `SELECT i.id, i.invoice_no, i.patient_name, i.patient_reg, i.billing_type, i.payable, i.total_paid, i.status, i.invoice_date,
+      COUNT(p.id) AS payment_count
+     FROM invoices i
+     LEFT JOIN payments p ON p.invoice_id = i.id
+     WHERE i.patient_reg = ?
+     GROUP BY i.id
+     ORDER BY i.created_at DESC`,
     [reg],
   );
   const items: InvoiceSummary[] = [];
@@ -334,6 +375,17 @@ export async function getInvoicesByPatient(reg: string): Promise<InvoiceSummary[
     if (paid >= payable) displayStatus = 'Paid';
     else if (paid > 0) displayStatus = 'Partial';
     else displayStatus = 'Unpaid';
+    let invoicePayments: {amount: number; method: string}[] = [];
+    if (row.payment_count > 0) {
+      const [payResults] = await database.executeSql(
+        'SELECT amount, method FROM payments WHERE invoice_id = ? ORDER BY id ASC',
+        [row.id],
+      );
+      for (let j = 0; j < payResults.rows.length; j++) {
+        const pr = payResults.rows.item(j);
+        invoicePayments.push({amount: pr.amount || 0, method: pr.method || 'Cash'});
+      }
+    }
     items.push({
       id: row.id,
       name: row.patient_name,
@@ -343,6 +395,8 @@ export async function getInvoicesByPatient(reg: string): Promise<InvoiceSummary[
       amount: `₹${Number(payable).toLocaleString('en-IN')}`,
       payable,
       totalPaid: paid,
+      paymentCount: row.payment_count || 0,
+      payments: invoicePayments,
       status: displayStatus,
       date: row.invoice_date || '',
     });
@@ -376,7 +430,7 @@ export async function getFullInvoice(id: string): Promise<Invoice | null> {
   const payments: Payment[] = [];
   for (let i = 0; i < payResults.rows.length; i++) {
     const pr = payResults.rows.item(i);
-    payments.push({amount: pr.amount, method: pr.method});
+    payments.push({amount: pr.amount, method: pr.method, date: pr.date || ''});
   }
 
   return {
@@ -398,6 +452,7 @@ export async function getFullInvoice(id: string): Promise<Invoice | null> {
     balanceDue: row.balance_due,
     status: row.status,
     note: row.note || '',
+    paymentReceiveDate: row.payment_receive_date || '',
     pdfPath: row.pdf_path || '',
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -520,4 +575,185 @@ export async function saveClinicSettings(settings: ClinicSettings): Promise<void
       settings.insuranceClause || '',
     ],
   );
+}
+
+export async function getAllPayments(): Promise<PaymentReceipt[]> {
+  const database = await getDatabase();
+  const [results] = await database.executeSql(
+    `SELECT py.id, py.invoice_id, py.amount, py.method, py.date,
+       i.invoice_no, i.patient_name, i.patient_reg, i.invoice_date,
+       i.status AS invoice_status, i.payable, i.total_paid,
+       (SELECT COUNT(*) FROM payments p2 WHERE p2.invoice_id = py.invoice_id) AS payment_count,
+       (SELECT COUNT(*) FROM payments p3 WHERE p3.invoice_id = py.invoice_id AND p3.id <= py.id) AS payment_index
+     FROM payments py
+     JOIN invoices i ON i.id = py.invoice_id
+     ORDER BY i.created_at DESC, py.id ASC`,
+  );
+  const items: PaymentReceipt[] = [];
+  for (let j = 0; j < results.rows.length; j++) {
+    const row = results.rows.item(j);
+    items.push({
+      id: row.id,
+      invoiceId: row.invoice_id,
+      invoiceNo: row.invoice_no,
+      patientName: row.patient_name,
+      patientReg: row.patient_reg || '',
+      amount: row.amount || 0,
+      method: row.method || 'Cash',
+      invoiceDate: row.invoice_date || '',
+      invoiceStatus: row.invoice_status || '',
+      payable: row.payable || 0,
+      totalPaid: row.total_paid || 0,
+      paymentCount: row.payment_count || 0,
+      paymentIndex: row.payment_index || 1,
+      paymentDate: row.date || '',
+    });
+  }
+  return items;
+}
+
+export interface DatabaseBackup {
+  vedabilling_backup: true;
+  version: number;
+  exported_at: string;
+  app_version: string;
+  tables: {
+    patients: any[];
+    invoices: any[];
+    invoice_items: any[];
+    payments: any[];
+    clinic_settings: any[];
+  };
+}
+
+export async function exportAllData(): Promise<DatabaseBackup> {
+  const database = await getDatabase();
+
+  const [patients] = await database.executeSql('SELECT * FROM patients');
+  const [invoices] = await database.executeSql('SELECT * FROM invoices');
+  const [invoiceItems] = await database.executeSql('SELECT * FROM invoice_items');
+  const [payments] = await database.executeSql('SELECT * FROM payments');
+  const [clinicSettings] = await database.executeSql('SELECT * FROM clinic_settings');
+
+  const rowsToArr = (result: any) => {
+    const arr = [];
+    for (let i = 0; i < result.rows.length; i++) arr.push(result.rows.item(i));
+    return arr;
+  };
+
+  return {
+    vedabilling_backup: true,
+    version: 1,
+    exported_at: new Date().toISOString(),
+    app_version: '1.0.0',
+    tables: {
+      patients: rowsToArr(patients),
+      invoices: rowsToArr(invoices),
+      invoice_items: rowsToArr(invoiceItems),
+      payments: rowsToArr(payments),
+      clinic_settings: rowsToArr(clinicSettings),
+    },
+  };
+}
+
+export async function importAllData(backup: DatabaseBackup): Promise<{patients: number; invoices: number; payments: number}> {
+  const database = await getDatabase();
+
+  await database.executeSql('DELETE FROM payments');
+  await database.executeSql('DELETE FROM invoice_items');
+  await database.executeSql('DELETE FROM invoices');
+  await database.executeSql('DELETE FROM patients');
+  await database.executeSql('DELETE FROM clinic_settings');
+
+  let patientCount = 0;
+  for (const p of backup.tables.patients) {
+    await database.executeSql(
+      `INSERT OR REPLACE INTO patients (id, reg, name, phone, address, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [p.id, p.reg, p.name, p.phone || '', p.address || '', p.created_at, p.updated_at],
+    );
+    patientCount++;
+  }
+
+  let invoiceCount = 0;
+  for (const inv of backup.tables.invoices) {
+    await database.executeSql(
+      `INSERT OR REPLACE INTO invoices
+        (id, invoice_no, invoice_date, due_date, therapist, patient_reg, patient_name,
+         billing_type, total, discount, payable, total_paid, extra_paid, balance_due,
+         status, note, payment_receive_date, pdf_path, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        inv.id, inv.invoice_no, inv.invoice_date, inv.due_date, inv.therapist || '',
+        inv.patient_reg, inv.patient_name, inv.billing_type, inv.total || 0,
+        inv.discount || 0, inv.payable || 0, inv.total_paid || 0, inv.extra_paid || 0,
+        inv.balance_due || 0, inv.status || 'Due', inv.note || '',
+        inv.payment_receive_date || '', inv.pdf_path || '', inv.created_at, inv.updated_at,
+      ],
+    );
+    invoiceCount++;
+  }
+
+  for (const item of backup.tables.invoice_items) {
+    await database.executeSql(
+      `INSERT OR REPLACE INTO invoice_items (id, invoice_id, name, unit_price, qty, unit)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [item.id, item.invoice_id, item.name, item.unit_price || 0, item.qty || 1, item.unit || ''],
+    );
+  }
+
+  let paymentCount = 0;
+  for (const pay of backup.tables.payments) {
+    await database.executeSql(
+      `INSERT OR REPLACE INTO payments (id, invoice_id, amount, method, date)
+       VALUES (?, ?, ?, ?, ?)`,
+      [pay.id, pay.invoice_id, pay.amount || 0, pay.method || 'Cash', pay.date || ''],
+    );
+    paymentCount++;
+  }
+
+  for (const cs of backup.tables.clinic_settings) {
+    await database.executeSql(
+      `INSERT OR REPLACE INTO clinic_settings
+        (id, clinic_name, tagline, phone, email, website, physiotherapist,
+         patient_id_format, gst, logo_uri, insurance_clause)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        cs.id || 1, cs.clinic_name || '', cs.tagline || '', cs.phone || '',
+        cs.email || '', cs.website || '', cs.physiotherapist || '',
+        cs.patient_id_format || 'VMCPTREG-####', cs.gst || '',
+        cs.logo_uri || '', cs.insurance_clause || '',
+      ],
+    );
+  }
+
+  return {patients: patientCount, invoices: invoiceCount, payments: paymentCount};
+}
+
+export async function updateInvoicePayment(
+  invoiceId: string,
+  payments: {amount: number; method: string; date: string}[],
+  totalPaid: number,
+  extraPaid: number,
+  balanceDue: number,
+  status: string,
+): Promise<void> {
+  const database = await getDatabase();
+  const now = new Date().toISOString();
+  await database.executeSql(
+    `UPDATE invoices
+     SET total_paid = ?, extra_paid = ?, balance_due = ?, status = ?, updated_at = ?
+     WHERE id = ?`,
+    [totalPaid, extraPaid, balanceDue, status, now, invoiceId],
+  );
+  await database.executeSql(
+    `DELETE FROM payments WHERE invoice_id = ?`,
+    [invoiceId],
+  );
+  for (const payment of payments) {
+    await database.executeSql(
+      `INSERT INTO payments (invoice_id, amount, method, date) VALUES (?, ?, ?, ?)`,
+      [invoiceId, payment.amount || 0, payment.method || 'Cash', payment.date || ''],
+    );
+  }
 }

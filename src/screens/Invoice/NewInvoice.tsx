@@ -1,20 +1,26 @@
-import {useState, useEffect} from 'react';
+import {useState, useEffect, useCallback} from 'react';
 import {
   View,
   Text,
-  TextInput,
-  TouchableOpacity,
-  ScrollView,
-  StyleSheet,
-  SafeAreaView,
-  StatusBar,
-  KeyboardAvoidingView,
-  Platform,
   Alert,
   Modal,
+  Platform,
+  TextInput,
+  StatusBar,
+  StyleSheet,
+  ScrollView,
+  SafeAreaView,
+  TouchableOpacity,
+  KeyboardAvoidingView,
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import RNFS from 'react-native-fs';
-import {insertInvoice, getNextInvoiceNo} from './../../database';
+import {
+  insertInvoice,
+  getNextInvoiceNo,
+  updateInvoicePayment,
+  getFullInvoice,
+} from './../../database';
 
 import BASE from './../../constants/colors';
 
@@ -119,42 +125,60 @@ function FieldLabel({label, sub}: any) {
   );
 }
 
-function DatePickerModal({visible, currentDate, onSelect, onClose}: any) {
-  const parsed = parseDate(currentDate) || new Date();
-  const [day, setDay] = useState(String(parsed.getDate()).padStart(2, '0'));
-  const [month, setMonth] = useState(
-    String(parsed.getMonth() + 1).padStart(2, '0'),
+function NativeDatePicker({
+  visible,
+  currentDate,
+  onSelect,
+  onClose,
+}: {
+  visible: boolean;
+  currentDate: string;
+  onSelect: (d: string) => void;
+  onClose: () => void;
+}) {
+  const [value, setValue] = useState(
+    () => parseDate(currentDate) || new Date(),
   );
-  const [year, setYear] = useState(String(parsed.getFullYear()));
 
   useEffect(() => {
-    const d = parseDate(currentDate) || new Date();
-    setDay(String(d.getDate()).padStart(2, '0'));
-    setMonth(String(d.getMonth() + 1).padStart(2, '0'));
-    setYear(String(d.getFullYear()));
+    if (visible) {
+      setValue(parseDate(currentDate) || new Date());
+    }
   }, [currentDate, visible]);
 
-  const handleDone = () => {
-    const dd = day.padStart(2, '0');
-    const mm = month.padStart(2, '0');
-    const yyyy = year;
-    const d = parseInt(dd, 10);
-    const m = parseInt(mm, 10);
-    const y = parseInt(yyyy, 10);
-    if (d >= 1 && d <= 31 && m >= 1 && m <= 12 && y >= 1900 && y <= 2100) {
-      onSelect(`${dd}/${mm}/${yyyy}`);
+  const handleAndroidChange = useCallback(
+    (event: any, date?: Date) => {
+      if (event?.type === 'set' && date) {
+        setValue(date);
+        onSelect(formatDateString(date));
+      }
       onClose();
-    } else {
-      Alert.alert('Invalid Date', 'Please enter a valid date (DD/MM/YYYY).');
-    }
-  };
+    },
+    [onSelect, onClose],
+  );
 
-  const setToday = () => {
-    const t = new Date();
-    setDay(String(t.getDate()).padStart(2, '0'));
-    setMonth(String(t.getMonth() + 1).padStart(2, '0'));
-    setYear(String(t.getFullYear()));
-  };
+  const handleIOSChange = useCallback(
+    (event: any, date?: Date) => {
+      if (event?.type === 'set' && date) {
+        setValue(date);
+        onSelect(formatDateString(date));
+      }
+    },
+    [onSelect],
+  );
+
+  if (!visible) return null;
+
+  if (Platform.OS === 'android') {
+    return (
+      <DateTimePicker
+        value={value}
+        mode="date"
+        display="default"
+        onChange={handleAndroidChange}
+      />
+    );
+  }
 
   return (
     <Modal
@@ -166,54 +190,35 @@ function DatePickerModal({visible, currentDate, onSelect, onClose}: any) {
         style={styles.modalOverlay}
         activeOpacity={1}
         onPress={onClose}>
-        <TouchableOpacity style={styles.datePickerModal} activeOpacity={1}>
+        <View style={styles.datePickerModal}>
           <Text style={styles.datePickerTitle}>Select Date</Text>
-          <View style={styles.datePickerRow}>
-            <TextInput
-              style={styles.datePickerInput}
-              value={day}
-              onChangeText={setDay}
-              placeholder="DD"
-              maxLength={2}
-              keyboardType="numeric"
-              placeholderTextColor={COLORS.placeholder}
-            />
-            <Text style={styles.datePickerSep}>/</Text>
-            <TextInput
-              style={styles.datePickerInput}
-              value={month}
-              onChangeText={setMonth}
-              placeholder="MM"
-              maxLength={2}
-              keyboardType="numeric"
-              placeholderTextColor={COLORS.placeholder}
-            />
-            <Text style={styles.datePickerSep}>/</Text>
-            <TextInput
-              style={[styles.datePickerInput, {flex: 1.5}]}
-              value={year}
-              onChangeText={setYear}
-              placeholder="YYYY"
-              maxLength={4}
-              keyboardType="numeric"
-              placeholderTextColor={COLORS.placeholder}
-            />
-          </View>
+          <DateTimePicker
+            value={value}
+            mode="date"
+            display="inline"
+            onChange={handleIOSChange}
+            style={{width: '100%'}}
+          />
           <View style={styles.datePickerActions}>
             <TouchableOpacity
               style={styles.datePickerTodayBtn}
-              onPress={setToday}
+              onPress={() => {
+                const t = new Date();
+                setValue(t);
+                onSelect(formatDateString(t));
+                onClose();
+              }}
               activeOpacity={0.8}>
               <Text style={styles.datePickerTodayText}>Today</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.datePickerDoneBtn}
-              onPress={handleDone}
+              onPress={onClose}
               activeOpacity={0.8}>
               <Text style={styles.datePickerDoneText}>Done</Text>
             </TouchableOpacity>
           </View>
-        </TouchableOpacity>
+        </View>
       </TouchableOpacity>
     </Modal>
   );
@@ -222,10 +227,40 @@ function DatePickerModal({visible, currentDate, onSelect, onClose}: any) {
 export default function NewInvoiceStep2({navigation, route}: any) {
   const paramsPatient = route?.params?.patient;
   const today = new Date();
-  const [invoiceNo, setInvoiceNo] = useState('');
+  const paramsPaymentStatus = route?.params?.paymentStatus || null;
+  const paramsDueAmount = route?.params?.dueAmount || null;
+  const paramsPaymentCount = route?.params?.paymentCount || 0;
+  const paramsExistingInvoiceNo = route?.params?.existingInvoiceNo || null;
+  const paramsExistingInvoiceId = route?.params?.existingInvoiceId || null;
+  const paramsExistingTotalPaid = route?.params?.existingTotalPaid || 0;
+  const paramsExistingPayable = route?.params?.existingPayable || 0;
+  const paramsExistingPayments = route?.params?.existingPayments || [];
+
+  const [invoiceNo, setInvoiceNo] = useState(paramsExistingInvoiceNo || '');
+
   useEffect(() => {
-    generateInvoiceNo().then(setInvoiceNo);
+    if (!paramsExistingInvoiceNo) {
+      generateInvoiceNo().then(setInvoiceNo);
+    }
   }, []);
+
+  useEffect(() => {
+    if (paramsExistingInvoiceId) {
+      getFullInvoice(paramsExistingInvoiceId).then(inv => {
+        if (inv && inv.items && inv.items.length > 0) {
+          setItems(
+            inv.items.map(it => ({
+              name: it.name,
+              amount: String(it.unitPrice || 0),
+              qty: String(it.qty || 1),
+              unit: it.unit || '',
+            })),
+          );
+        }
+      });
+    }
+  }, [paramsExistingInvoiceId]);
+
   const [invoiceDate, setInvoiceDate] = useState(formatDateString(today));
   const [dueDate, setDueDate] = useState(formatDateString(addDays(today, 7)));
   const [therapist, setTherapist] = useState('Dr. Yash Pratihasta, PT');
@@ -233,11 +268,16 @@ export default function NewInvoiceStep2({navigation, route}: any) {
   const [billingType, setBillingType] = useState('Per-Visit');
   const [items, setItems] = useState<
     {name: string; amount: string; qty: string; unit: string}[]
-  >([{name: 'Home Rehab', amount: '1000', qty: '1', unit: 'Session'}]);
+  >([
+    {
+      name: 'Home Rehab',
+      amount: String(paramsExistingPayable || 1000),
+      qty: '1',
+      unit: 'Session',
+    },
+  ]);
   const [customTag, setCustomTag] = useState('');
   const [discount, setDiscount] = useState('0');
-  const paramsPaymentStatus = route?.params?.paymentStatus || null;
-  const paramsDueAmount = route?.params?.dueAmount || null;
   const [payments, setPayments] = useState([
     {
       amount:
@@ -245,6 +285,7 @@ export default function NewInvoiceStep2({navigation, route}: any) {
           ? paramsDueAmount
           : '0',
       method: 'Cash',
+      date: formatDateString(today),
     },
   ]);
   const [showMethodPicker, setShowMethodPicker] = useState<number | null>(null);
@@ -255,7 +296,7 @@ export default function NewInvoiceStep2({navigation, route}: any) {
   const [note, setNote] = useState('');
   const [showNoteInput, setShowNoteInput] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState<
-    'invoice' | 'due' | null
+    'invoice' | 'due' | {paymentIdx: number} | null
   >(null);
 
   const totalAmount = items.reduce(
@@ -263,12 +304,20 @@ export default function NewInvoiceStep2({navigation, route}: any) {
     0,
   );
   const payable = Math.max(0, totalAmount - (parseInt(discount) || 0));
-  const totalPaid = payments.reduce((s, p) => s + (parseInt(p.amount) || 0), 0);
+  const currentTotalPaid = payments.reduce(
+    (s, p) => s + (parseInt(p.amount) || 0),
+    0,
+  );
+  const totalPaid = currentTotalPaid + (paramsExistingTotalPaid || 0);
   const extraPaid = Math.max(0, totalPaid - payable);
   const balanceDue = Math.max(0, payable - totalPaid);
 
   useEffect(() => {
-    if (!paramsPaymentStatus && totalPaid > 0 && totalPaid < payable) {
+    if (totalPaid === 0) {
+      setPaymentStatus('Due');
+    } else if (totalPaid >= payable) {
+      setPaymentStatus('Paid');
+    } else {
       setPaymentStatus('Partial Paid');
     }
   }, [totalPaid, payable]);
@@ -305,6 +354,7 @@ export default function NewInvoiceStep2({navigation, route}: any) {
     payments: payments.map(p => ({
       amount: parseInt(p.amount) || 0,
       method: p.method,
+      date: p.date,
     })),
     totalPaid,
     extraPaid,
@@ -322,28 +372,48 @@ export default function NewInvoiceStep2({navigation, route}: any) {
       if (!exists) await RNFS.mkdir(dir);
       const path = dir + '/' + invoiceNo.replace(/\//g, '-') + '.json';
       await RNFS.writeFile(path, JSON.stringify(data, null, 2), 'utf8');
-      await insertInvoice({
-        id: data.id,
-        invoiceNo: data.invoiceNo,
-        invoiceDate: data.invoiceDate,
-        dueDate: data.dueDate,
-        therapist: data.therapist,
-        patientReg: data.patient.reg,
-        patientName: data.patient.name,
-        billingType: data.billingType,
-        items: data.items,
-        total: data.total,
-        discount: data.discount,
-        payable: data.payable,
-        payments: data.payments,
-        totalPaid: data.totalPaid,
-        extraPaid: data.extraPaid,
-        balanceDue: data.balanceDue,
-        status: data.status,
-        note: data.note,
-        createdAt: data.createdAt,
-        updatedAt: data.createdAt,
-      });
+      if (paramsExistingInvoiceId) {
+        const cumTotalPaid = data.totalPaid;
+        const cumExtraPaid = Math.max(0, cumTotalPaid - data.payable);
+        const cumBalanceDue = Math.max(0, data.payable - cumTotalPaid);
+        const cumStatus =
+          cumTotalPaid >= data.payable ? 'Paid' : 'Partial Paid';
+        await updateInvoicePayment(
+          paramsExistingInvoiceId,
+          payments.map(p => ({
+            amount: parseInt(p.amount) || 0,
+            method: p.method,
+            date: p.date,
+          })),
+          cumTotalPaid,
+          cumExtraPaid,
+          cumBalanceDue,
+          cumStatus,
+        );
+      } else {
+        await insertInvoice({
+          id: data.id,
+          invoiceNo: data.invoiceNo,
+          invoiceDate: data.invoiceDate,
+          dueDate: data.dueDate,
+          therapist: data.therapist,
+          patientReg: data.patient.reg,
+          patientName: data.patient.name,
+          billingType: data.billingType,
+          items: data.items,
+          total: data.total,
+          discount: data.discount,
+          payable: data.payable,
+          payments: data.payments,
+          totalPaid: data.totalPaid,
+          extraPaid: data.extraPaid,
+          balanceDue: data.balanceDue,
+          status: data.status,
+          note: data.note,
+          createdAt: data.createdAt,
+          updatedAt: data.createdAt,
+        });
+      }
       setInvoiceNo(await getNextInvoiceNo());
       Alert.alert('Saved', `Invoice saved successfully.`);
     } catch (error: any) {
@@ -351,35 +421,27 @@ export default function NewInvoiceStep2({navigation, route}: any) {
     }
   };
 
-  const handlePreview = async () => {
-    const data = buildInvoiceData();
-    try {
-      await insertInvoice({
-        id: data.id,
-        invoiceNo: data.invoiceNo,
-        invoiceDate: data.invoiceDate,
-        dueDate: data.dueDate,
-        therapist: data.therapist,
-        patientReg: data.patient.reg,
-        patientName: data.patient.name,
-        billingType: data.billingType,
-        items: data.items,
-        total: data.total,
-        discount: data.discount,
-        payable: data.payable,
-        payments: data.payments,
-        totalPaid: data.totalPaid,
-        extraPaid: data.extraPaid,
-        balanceDue: data.balanceDue,
-        status: data.status,
-        note: data.note,
-        createdAt: data.createdAt,
-        updatedAt: data.createdAt,
-      });
-    } catch {}
+  const handlePreview = () => {
+    const allPayments = [
+      ...paramsExistingPayments.map((p: any) => ({
+        ...p,
+        date: p.date || invoiceDate,
+      })),
+      ...payments.map(p => ({
+        amount: parseInt(p.amount) || 0,
+        method: p.method,
+        date: p.date,
+      })),
+    ];
+    const latestPayDate = allPayments.reduce(
+      (latest: string, p: any) => (p.date && p.date > latest ? p.date : latest),
+      '',
+    );
     navigation.navigate('PreviewInvoice', {
       note,
       therapist,
+      existingInvoiceId: paramsExistingInvoiceId,
+      paymentReceiveDate: latestPayDate || invoiceDate,
       patient: selectedPatient || {
         name: 'New Patient',
         reg: 'VMCPTREG-0157',
@@ -402,14 +464,13 @@ export default function NewInvoiceStep2({navigation, route}: any) {
         total: totalAmount,
         discount: parseInt(discount) || 0,
         payable,
-        payments: payments.map(p => ({
-          amount: parseInt(p.amount) || 0,
-          method: p.method,
-        })),
+        payments: allPayments,
         totalPaid,
         extraPaid,
         balanceDue,
         status: paymentStatus || getStatus(),
+        previousPaid: paramsExistingTotalPaid || 0,
+        previousPaymentCount: paramsExistingPayments.length || 0,
       },
     });
   };
@@ -435,9 +496,12 @@ export default function NewInvoiceStep2({navigation, route}: any) {
     }
   };
 
-  const addPayment = () => {
-    setPayments([...payments, {amount: '', method: 'Cash'}]);
-  };
+  // const addPayment = () => {
+  //   setPayments([
+  //     ...payments,
+  //     {amount: '', method: 'Cash', date: formatDateString(new Date())},
+  //   ]);
+  // };
 
   const removePayment = (idx: number) => {
     setPayments(payments.filter((_, i) => i !== idx));
@@ -446,19 +510,25 @@ export default function NewInvoiceStep2({navigation, route}: any) {
   const updatePayment = (idx: number, key: string, val: string) => {
     if (key === 'amount') {
       const numVal = parseInt(val) || 0;
-      const otherTotal = payments.reduce(
-        (s, p, i) => s + (i !== idx ? parseInt(p.amount) || 0 : 0),
-        0,
-      );
-      const maxAllowed = payable - otherTotal;
-      if (numVal > maxAllowed && maxAllowed > 0) {
-        Alert.alert(
-          'Limit Exceeded',
-          `Payment amount cannot exceed the due amount of ₹${maxAllowed.toLocaleString(
-            'en-IN',
-          )}.`,
+      const isOverPaid = paymentStatus === 'Over Paid';
+      if (!isOverPaid) {
+        const otherTotal = payments.reduce(
+          (s, p, i) => s + (i !== idx ? parseInt(p.amount) || 0 : 0),
+          0,
         );
-        return;
+        const dueLimit = paramsDueAmount
+          ? parseInt(paramsDueAmount) || 0
+          : payable;
+        const maxAllowed = dueLimit - otherTotal;
+        if (numVal > maxAllowed && maxAllowed > 0) {
+          Alert.alert(
+            'Limit Exceeded',
+            `Payment amount cannot exceed the due amount of ₹${maxAllowed.toLocaleString(
+              'en-IN',
+            )}.`,
+          );
+          return;
+        }
       }
     }
     setPayments(payments.map((p, i) => (i === idx ? {...p, [key]: val} : p)));
@@ -469,7 +539,8 @@ export default function NewInvoiceStep2({navigation, route}: any) {
       <StatusBar barStyle="light-content" backgroundColor={COLORS.teal} />
       <KeyboardAvoidingView
         style={{flex: 1}}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}>
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity
@@ -485,14 +556,40 @@ export default function NewInvoiceStep2({navigation, route}: any) {
           style={styles.scroll}
           contentContainerStyle={styles.container}
           showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled">
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag">
           {/* Step indicators */}
-          <View style={styles.stepRow}>
-            <Text style={styles.stepDone}>1</Text>
-            <View style={styles.stepLine} />
-            <Text style={styles.stepActive}>2</Text>
-            <View style={styles.stepLine} />
-            <Text style={styles.stepInactive}>3</Text>
+          <View style={styles.stepContainer}>
+            <View style={styles.stepItem}>
+              <View style={[styles.stepCircle, styles.stepCircleDone]}>
+                <Text style={styles.stepCheckMark}>✓</Text>
+              </View>
+              <Text style={[styles.stepLabel, styles.stepLabelDone]}>
+                Patient
+              </Text>
+            </View>
+            <View style={styles.stepConnector}>
+              <View
+                style={[styles.stepConnectorFill, styles.stepConnectorActive]}
+              />
+            </View>
+            <View style={styles.stepItem}>
+              <View style={[styles.stepCircle, styles.stepCircleActive]}>
+                <Text style={styles.stepNumberActive}>2</Text>
+              </View>
+              <Text style={[styles.stepLabel, styles.stepLabelActive]}>
+                Details
+              </Text>
+            </View>
+            <View style={styles.stepConnector}>
+              <View style={styles.stepConnectorFill} />
+            </View>
+            <View style={styles.stepItem}>
+              <View style={styles.stepCircle}>
+                <Text style={styles.stepNumberInactive}>3</Text>
+              </View>
+              <Text style={styles.stepLabel}>Preview</Text>
+            </View>
           </View>
 
           {/* Patient card */}
@@ -537,17 +634,18 @@ export default function NewInvoiceStep2({navigation, route}: any) {
 
           {/* Invoice Number + Date */}
           <View style={styles.twoCol}>
-            <View style={styles.colHalf}>
+            <View style={styles.colWide}>
               <FieldLabel label="INVOICE NUMBER" />
               <TextInput
-                style={styles.input}
+                style={[
+                  styles.input,
+                  paramsExistingInvoiceNo && styles.disabledInput,
+                ]}
                 value={invoiceNo}
                 onChangeText={setInvoiceNo}
+                editable={!paramsExistingInvoiceNo}
                 placeholderTextColor={COLORS.placeholder}
               />
-              {/* <Text style={{color: COLORS.placeholder, fontSize: 9}}>
-                VMC/INV/26-27/0001
-              </Text> */}
             </View>
             <View style={styles.colHalf}>
               <FieldLabel label="INVOICE DATE" />
@@ -562,31 +660,33 @@ export default function NewInvoiceStep2({navigation, route}: any) {
           </View>
 
           {/* Billing Type */}
-          <View style={styles.fieldWrapper}>
-            <FieldLabel label="BILLING TYPE" />
-            <View style={styles.segmented}>
-              {BILLING_TYPES.map(t => (
-                <TouchableOpacity
-                  key={t}
-                  style={[
-                    styles.segBtn,
-                    billingType === t && styles.segBtnActive,
-                  ]}
-                  onPress={() => setBillingType(t)}
-                  activeOpacity={0.8}>
-                  <Text
+          {!paramsExistingInvoiceNo && (
+            <View style={styles.fieldWrapper}>
+              <FieldLabel label="BILLING TYPE" />
+              <View style={styles.segmented}>
+                {BILLING_TYPES.map(t => (
+                  <TouchableOpacity
+                    key={t}
                     style={[
-                      styles.segBtnText,
-                      billingType === t && styles.segBtnTextActive,
-                    ]}>
-                    {t}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+                      styles.segBtn,
+                      billingType === t && styles.segBtnActive,
+                    ]}
+                    onPress={() => setBillingType(t)}
+                    activeOpacity={0.8}>
+                    <Text
+                      style={[
+                        styles.segBtnText,
+                        billingType === t && styles.segBtnTextActive,
+                      ]}>
+                      {t}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
-          </View>
+          )}
 
-          {paramsPaymentStatus && (
+          {paramsPaymentStatus && !paramsExistingInvoiceNo && (
             <View style={styles.fieldWrapper}>
               <FieldLabel label="PAYMENT TYPE" />
               {effectiveStatus === 'Partial Paid' && (
@@ -603,109 +703,113 @@ export default function NewInvoiceStep2({navigation, route}: any) {
           )}
 
           {/* Due Date */}
-          <View style={styles.fieldWrapper}>
-            <FieldLabel label="DUE DATE" sub="(auto-suggested)" />
-            <TouchableOpacity
-              style={styles.dateInput}
-              onPress={() => setShowDatePicker('due')}
-              activeOpacity={0.8}>
-              <Text style={styles.dateText}>{dueDate}</Text>
-              <Text style={styles.calIcon}>📅</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Service Items */}
-          <View style={styles.fieldWrapper}>
-            <FieldLabel label="SERVICE ITEMS" />
-            {/* Tag cloud as presets */}
-            <View style={styles.tagCloud}>
-              {SERVICE_TAGS.map(tag => {
-                const alreadyAdded = items.some(it => it.name === tag);
-                return (
-                  <TouchableOpacity
-                    key={tag}
-                    style={[styles.tag, alreadyAdded && styles.tagAdded]}
-                    onPress={() => addItem(tag)}
-                    activeOpacity={0.75}>
-                    <Text
-                      style={[
-                        styles.tagText,
-                        alreadyAdded && styles.tagTextAdded,
-                      ]}>
-                      {tag}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
-            {/* Custom add */}
-            <View style={styles.addTagRow}>
-              <TextInput
-                style={styles.addTagInput}
-                placeholder="Type custom item name..."
-                placeholderTextColor={COLORS.placeholder}
-                value={customTag}
-                onChangeText={setCustomTag}
-                returnKeyType="done"
-                onSubmitEditing={addCustomItem}
-              />
+          {!paramsExistingInvoiceNo && (
+            <View style={styles.fieldWrapper}>
+              <FieldLabel label="DUE DATE" sub="(auto-suggested)" />
               <TouchableOpacity
-                style={styles.addTagBtn}
-                onPress={addCustomItem}
+                style={styles.dateInput}
+                onPress={() => setShowDatePicker('due')}
                 activeOpacity={0.8}>
-                <Text style={styles.addTagBtnText}>+ Add</Text>
+                <Text style={styles.dateText}>{dueDate}</Text>
+                <Text style={styles.calIcon}>📅</Text>
               </TouchableOpacity>
             </View>
+          )}
 
-            {/* Item list */}
-            {items.map((item, idx) => (
-              <View key={idx} style={styles.itemCard}>
-                <View style={styles.itemRow}>
-                  <TextInput
-                    style={[styles.input, styles.itemNameInput]}
-                    value={item.name}
-                    onChangeText={v => updateItem(idx, 'name', v)}
-                    placeholderTextColor={COLORS.placeholder}
-                  />
-                  <TouchableOpacity
-                    style={styles.removeBtn}
-                    onPress={() => removeItem(idx)}
-                    activeOpacity={0.8}>
-                    <Text style={styles.removeBtnText}>✕</Text>
-                  </TouchableOpacity>
-                </View>
-                <View style={styles.itemMetaRow}>
-                  <TextInput
-                    style={[styles.input, styles.itemQtyInput]}
-                    value={item.qty}
-                    onChangeText={v => updateItem(idx, 'qty', v)}
-                    keyboardType="numeric"
-                    placeholder="Qty"
-                    placeholderTextColor={COLORS.placeholder}
-                  />
-                  <TextInput
-                    style={[styles.input, styles.itemUnitInput]}
-                    value={item.unit}
-                    onChangeText={v => updateItem(idx, 'unit', v)}
-                    placeholder="Unit"
-                    keyboardType="default"
-                    placeholderTextColor={COLORS.placeholder}
-                  />
-                  <View style={styles.itemAmountWrapper}>
+          {/* Service Items */}
+          {!paramsExistingInvoiceNo && (
+            <View style={styles.fieldWrapper}>
+              <FieldLabel label="SERVICE ITEMS" />
+              {/* Tag cloud as presets */}
+              <View style={styles.tagCloud}>
+                {SERVICE_TAGS.map(tag => {
+                  const alreadyAdded = items.some(it => it.name === tag);
+                  return (
+                    <TouchableOpacity
+                      key={tag}
+                      style={[styles.tag, alreadyAdded && styles.tagAdded]}
+                      onPress={() => addItem(tag)}
+                      activeOpacity={0.75}>
+                      <Text
+                        style={[
+                          styles.tagText,
+                          alreadyAdded && styles.tagTextAdded,
+                        ]}>
+                        {tag}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {/* Custom add */}
+              <View style={styles.addTagRow}>
+                <TextInput
+                  style={styles.addTagInput}
+                  placeholder="Type custom item name..."
+                  placeholderTextColor={COLORS.placeholder}
+                  value={customTag}
+                  onChangeText={setCustomTag}
+                  returnKeyType="done"
+                  onSubmitEditing={addCustomItem}
+                />
+                <TouchableOpacity
+                  style={styles.addTagBtn}
+                  onPress={addCustomItem}
+                  activeOpacity={0.8}>
+                  <Text style={styles.addTagBtnText}>+ Add</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Item list */}
+              {items.map((item, idx) => (
+                <View key={idx} style={styles.itemCard}>
+                  <View style={styles.itemRow}>
                     <TextInput
-                      style={[styles.input, styles.itemAmountInput]}
-                      value={item.amount}
-                      onChangeText={v => updateItem(idx, 'amount', v)}
-                      keyboardType="numeric"
-                      placeholder="Amount"
+                      style={[styles.input, styles.itemNameInput]}
+                      value={item.name}
+                      onChangeText={v => updateItem(idx, 'name', v)}
                       placeholderTextColor={COLORS.placeholder}
                     />
+                    <TouchableOpacity
+                      style={styles.removeBtn}
+                      onPress={() => removeItem(idx)}
+                      activeOpacity={0.8}>
+                      <Text style={styles.removeBtnText}>✕</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <View style={styles.itemMetaRow}>
+                    <TextInput
+                      style={[styles.input, styles.itemQtyInput]}
+                      value={item.qty}
+                      onChangeText={v => updateItem(idx, 'qty', v)}
+                      keyboardType="numeric"
+                      placeholder="Qty"
+                      placeholderTextColor={COLORS.placeholder}
+                    />
+                    <TextInput
+                      style={[styles.input, styles.itemUnitInput]}
+                      value={item.unit}
+                      onChangeText={v => updateItem(idx, 'unit', v)}
+                      placeholder="Unit"
+                      keyboardType="default"
+                      placeholderTextColor={COLORS.placeholder}
+                    />
+                    <View style={styles.itemAmountWrapper}>
+                      <TextInput
+                        style={[styles.input, styles.itemAmountInput]}
+                        value={item.amount}
+                        onChangeText={v => updateItem(idx, 'amount', v)}
+                        keyboardType="numeric"
+                        placeholder="Amount"
+                        placeholderTextColor={COLORS.placeholder}
+                      />
+                    </View>
                   </View>
                 </View>
-              </View>
-            ))}
-          </View>
+              ))}
+            </View>
+          )}
 
           {/* AMOUNT section */}
           <View style={styles.amountCard}>
@@ -739,98 +843,6 @@ export default function NewInvoiceStep2({navigation, route}: any) {
               <View style={[styles.input, styles.disabledInput]}>
                 <Text style={styles.disabledText}>
                   {payable.toLocaleString('en-IN')}
-                </Text>
-              </View>
-            </View>
-
-            {/* Payments received */}
-            <FieldLabel label="PAYMENTS RECEIVED" />
-            {payments.map((p, idx) => (
-              <View key={idx} style={styles.paymentRow}>
-                <TextInput
-                  style={[styles.input, styles.paymentAmountInput]}
-                  value={p.amount}
-                  onChangeText={v => updatePayment(idx, 'amount', v)}
-                  keyboardType="numeric"
-                  placeholder="Amount"
-                  placeholderTextColor={COLORS.placeholder}
-                />
-                <TouchableOpacity
-                  style={styles.methodPicker}
-                  onPress={() =>
-                    setShowMethodPicker(showMethodPicker === idx ? null : idx)
-                  }
-                  activeOpacity={0.8}>
-                  <Text style={styles.methodText}>{p.method}</Text>
-                  <Text style={styles.chevron}>⌄</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.removeBtn}
-                  onPress={() => removePayment(idx)}
-                  activeOpacity={0.8}>
-                  <Text style={styles.removeBtnText}>✕</Text>
-                </TouchableOpacity>
-              </View>
-            ))}
-
-            {/* Method dropdown */}
-            {showMethodPicker !== null && (
-              <View style={styles.dropdown}>
-                {PAYMENT_METHODS.map(m => (
-                  <TouchableOpacity
-                    key={m}
-                    style={styles.dropdownItem}
-                    onPress={() => {
-                      updatePayment(showMethodPicker, 'method', m);
-                      setShowMethodPicker(null);
-                    }}>
-                    <Text style={styles.dropdownItemText}>{m}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-
-            {/* Add Payment */}
-            <TouchableOpacity
-              style={styles.addPaymentBtn}
-              onPress={addPayment}
-              activeOpacity={0.8}>
-              <Text style={styles.addPaymentText}>+ Add Payment</Text>
-            </TouchableOpacity>
-
-            {/* Total Paid + Extra Paid + Balance Due */}
-            <View style={styles.twoCol}>
-              <View style={styles.colHalf}>
-                <FieldLabel label="TOTAL PAID (₹)" />
-                <View style={[styles.input, styles.disabledInput]}>
-                  <Text style={styles.disabledText}>
-                    {totalPaid.toLocaleString('en-IN')}
-                  </Text>
-                </View>
-              </View>
-              <View style={styles.colHalf}>
-                <FieldLabel
-                  label={
-                    billingType === 'Package'
-                      ? 'ADVANCE PAID (₹)'
-                      : 'EXTRA PAID (₹)'
-                  }
-                />
-                <View style={[styles.input, styles.disabledInput]}>
-                  <Text style={styles.disabledText}>
-                    {billingType === 'Package'
-                      ? totalPaid.toLocaleString('en-IN')
-                      : extraPaid.toLocaleString('en-IN')}
-                  </Text>
-                </View>
-              </View>
-            </View>
-
-            <View style={styles.fieldWrapper}>
-              <FieldLabel label="BALANCE DUE (₹)" />
-              <View style={[styles.input, styles.disabledInput]}>
-                <Text style={styles.disabledText}>
-                  {balanceDue.toLocaleString('en-IN')}
                 </Text>
               </View>
             </View>
@@ -880,6 +892,153 @@ export default function NewInvoiceStep2({navigation, route}: any) {
               )}
             </View>
 
+            {/* Payments received */}
+            <FieldLabel label="PAYMENTS RECEIVED" />
+
+            {/* Previous payments */}
+            {paramsExistingPayments.length > 0 &&
+              paramsExistingPayments.map((p: any, idx: number) => (
+                <View key={`prev-${idx}`} style={styles.prevPaymentCard}>
+                  <View style={styles.prevPaymentHeader}>
+                    <Text style={styles.prevPaymentBadge}>Paid</Text>
+                    <Text style={styles.prevPaymentMethod}>{p.method}</Text>
+                  </View>
+                  <View style={styles.prevPaymentRow}>
+                    <Text style={styles.prevPaymentAmount}>
+                      ₹{p.amount.toLocaleString('en-IN')}
+                    </Text>
+                    {p.date ? (
+                      <Text style={styles.prevPaymentDate}>{p.date}</Text>
+                    ) : null}
+                  </View>
+                </View>
+              ))}
+
+            {/* Current payment */}
+            {payments.map((p, idx) => (
+              <View key={idx} style={styles.paymentCard}>
+                <View style={styles.paymentCardHeader}>
+                  <Text style={styles.paymentCardTitle}>Payment</Text>
+                  {payments.length > 1 && (
+                    <TouchableOpacity
+                      style={styles.paymentRemoveBtn}
+                      onPress={() => removePayment(idx)}
+                      activeOpacity={0.7}>
+                      <Text style={styles.paymentRemoveBtnText}>Remove</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+
+                <View style={styles.paymentCardRow}>
+                  <View style={styles.paymentCardField}>
+                    <FieldLabel label="AMOUNT (₹)" />
+                    <TextInput
+                      style={styles.input}
+                      value={p.amount}
+                      onChangeText={v => updatePayment(idx, 'amount', v)}
+                      keyboardType="numeric"
+                      placeholder="0"
+                      placeholderTextColor={COLORS.placeholder}
+                    />
+                  </View>
+                  <View style={styles.paymentCardField}>
+                    <FieldLabel label="METHOD" />
+                    <TouchableOpacity
+                      style={styles.methodPicker}
+                      onPress={() =>
+                        setShowMethodPicker(
+                          showMethodPicker === idx ? null : idx,
+                        )
+                      }
+                      activeOpacity={0.8}>
+                      <Text style={styles.methodText}>{p.method}</Text>
+                      <Text style={styles.chevron}>⌄</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                <View style={styles.paymentCardField}>
+                  <FieldLabel label="RECEIVED DATE" />
+                  <TouchableOpacity
+                    style={styles.dateInput}
+                    onPress={() => setShowDatePicker({paymentIdx: idx})}
+                    activeOpacity={0.8}>
+                    <Text style={styles.dateText}>
+                      {p.date || 'Select date'}
+                    </Text>
+                    <Text style={styles.calIcon}>📅</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {showMethodPicker === idx && (
+                  <View style={styles.methodDropdown}>
+                    {PAYMENT_METHODS.map(m => (
+                      <TouchableOpacity
+                        key={m}
+                        style={styles.methodDropdownItem}
+                        onPress={() => {
+                          updatePayment(idx, 'method', m);
+                          setShowMethodPicker(null);
+                        }}>
+                        <Text
+                          style={[
+                            styles.methodDropdownText,
+                            p.method === m && styles.methodDropdownTextActive,
+                          ]}>
+                          {m}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+              </View>
+            ))}
+
+            {/* Add Payment */}
+            {/* <TouchableOpacity
+              style={styles.addPaymentBtn}
+              onPress={addPayment}
+              activeOpacity={0.8}>
+              <Text style={styles.addPaymentText}>+ Add Payment</Text>
+            </TouchableOpacity> */}
+
+            {/* Total Paid + Extra Paid + Balance Due */}
+            <View style={styles.twoCol}>
+              <View style={styles.colHalf}>
+                <FieldLabel label="TOTAL PAID (₹)" />
+                <View style={[styles.input, styles.disabledInput]}>
+                  <Text style={styles.disabledText}>
+                    {totalPaid.toLocaleString('en-IN')}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.colHalf}>
+                <FieldLabel
+                  label={
+                    billingType === 'Package'
+                      ? 'ADVANCE PAID (₹)'
+                      : 'EXTRA PAID (₹)'
+                  }
+                />
+                <View style={[styles.input, styles.disabledInput]}>
+                  <Text style={styles.disabledText}>
+                    {billingType === 'Package'
+                      ? totalPaid.toLocaleString('en-IN')
+                      : extraPaid.toLocaleString('en-IN')}
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            <View style={styles.fieldWrapper}>
+              <FieldLabel label="BALANCE DUE (₹)" />
+              <View style={[styles.input, styles.disabledInput]}>
+                <Text style={styles.disabledText}>
+                  {balanceDue.toLocaleString('en-IN')}
+                </Text>
+              </View>
+            </View>
+
             {/* Note / Remarks */}
             <TextInput
               style={styles.noteInput}
@@ -893,17 +1052,17 @@ export default function NewInvoiceStep2({navigation, route}: any) {
 
           {/* Action Buttons */}
           <View style={styles.actionRow}>
-            <TouchableOpacity
+            {/* <TouchableOpacity
               style={styles.draftBtn}
               activeOpacity={0.8}
               onPress={saveInvoice}>
               <Text style={styles.draftBtnText}>Save Draft</Text>
-            </TouchableOpacity>
+            </TouchableOpacity> */}
             <TouchableOpacity
               style={styles.shareBtn}
               activeOpacity={0.85}
               onPress={handlePreview}>
-              <Text style={styles.shareBtnText}>Preview & Share</Text>
+              <Text style={styles.shareBtnText}>Preview</Text>
             </TouchableOpacity>
           </View>
 
@@ -914,17 +1073,31 @@ export default function NewInvoiceStep2({navigation, route}: any) {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* Date Picker Modal */}
-      <DatePickerModal
+      {/* Date Picker */}
+      <NativeDatePicker
         visible={showDatePicker !== null}
-        currentDate={showDatePicker === 'invoice' ? invoiceDate : dueDate}
+        currentDate={
+          showDatePicker === 'invoice'
+            ? invoiceDate
+            : showDatePicker === 'due'
+            ? dueDate
+            : showDatePicker && typeof showDatePicker === 'object'
+            ? payments[showDatePicker.paymentIdx]?.date ||
+              formatDateString(new Date())
+            : formatDateString(new Date())
+        }
         onSelect={(d: string) => {
           if (showDatePicker === 'invoice') {
             setInvoiceDate(d);
             const parsed = parseDate(d);
             if (parsed) setDueDate(formatDateString(addDays(parsed, 7)));
-          } else {
+          } else if (showDatePicker === 'due') {
             setDueDate(d);
+          } else if (showDatePicker && typeof showDatePicker === 'object') {
+            const idx = showDatePicker.paymentIdx;
+            setPayments(
+              payments.map((p, i) => (i === idx ? {...p, date: d} : p)),
+            );
           }
         }}
         onClose={() => setShowDatePicker(null)}
@@ -943,7 +1116,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingTop: 12,
-    paddingBottom: 18,
+    paddingBottom: 20,
     gap: 12,
   },
   backBtn: {
@@ -958,13 +1131,14 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 22,
     fontWeight: '800',
-    color: '#FFF',
+    color: COLORS.headerText,
     letterSpacing: -0.4,
   },
 
   // Scroll
   scroll: {flex: 1, backgroundColor: COLORS.bg},
   container: {
+    flexGrow: 1,
     paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 36,
@@ -972,15 +1146,86 @@ const styles = StyleSheet.create({
   },
 
   // Step indicator
-  stepRow: {flexDirection: 'row', alignItems: 'center', marginBottom: 2},
-  stepDone: {fontSize: 14, fontWeight: '700', color: COLORS.stepInactive},
-  stepActive: {fontSize: 14, fontWeight: '700', color: COLORS.teal},
-  stepInactive: {fontSize: 14, fontWeight: '700', color: COLORS.stepInactive},
-  stepLine: {
+  stepContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+    marginBottom: 18,
+    paddingHorizontal: 8,
+  },
+  stepItem: {
+    alignItems: 'center',
+    width: 64,
+  },
+  stepCircle: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: COLORS.card,
+    borderWidth: 2,
+    borderColor: COLORS.stepInactive,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 5,
+  },
+  stepCircleDone: {
+    backgroundColor: COLORS.teal,
+    borderColor: COLORS.teal,
+  },
+  stepCircleActive: {
+    backgroundColor: COLORS.card,
+    borderColor: COLORS.teal,
+    shadowColor: COLORS.teal,
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  stepCheckMark: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  stepNumberActive: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: COLORS.teal,
+  },
+  stepNumberInactive: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: COLORS.stepInactive,
+  },
+  stepLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: COLORS.stepInactive,
+    letterSpacing: 0.2,
+  },
+  stepLabelDone: {
+    color: COLORS.teal,
+  },
+  stepLabelActive: {
+    color: COLORS.teal,
+    fontWeight: '700',
+  },
+  stepConnector: {
     flex: 1,
-    height: 1,
+    height: 3,
     backgroundColor: COLORS.border,
-    marginHorizontal: 8,
+    borderRadius: 1.5,
+    marginTop: 10,
+    marginHorizontal: -4,
+    overflow: 'hidden',
+  },
+  stepConnectorFill: {
+    width: '0%',
+    height: '100%',
+    backgroundColor: COLORS.teal,
+    borderRadius: 1.5,
+  },
+  stepConnectorActive: {
+    width: '100%',
   },
 
   // Patient card
@@ -1044,7 +1289,8 @@ const styles = StyleSheet.create({
 
   // Two col
   twoCol: {flexDirection: 'row', gap: 10},
-  colHalf: {flex: 1, gap: 6},
+  colWide: {flex: 12, gap: 6},
+  colHalf: {flex: 8, gap: 6},
 
   // Fields
   fieldWrapper: {gap: 8},
@@ -1193,10 +1439,85 @@ const styles = StyleSheet.create({
   },
 
   // Payment row
-  paymentRow: {flexDirection: 'row', gap: 8, alignItems: 'center'},
-  paymentAmountInput: {flex: 1},
+  prevPaymentCard: {
+    backgroundColor: COLORS.tealBg || '#EBF4F2',
+    borderRadius: 12,
+    padding: 14,
+    gap: 6,
+  },
+  prevPaymentHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  prevPaymentBadge: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#FFF',
+    backgroundColor: COLORS.teal,
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    overflow: 'hidden',
+  },
+  prevPaymentMethod: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: COLORS.textSecondary,
+  },
+  prevPaymentAmount: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: COLORS.textPrimary,
+  },
+  prevPaymentRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  prevPaymentDate: {
+    fontSize: 13,
+    color: COLORS.textSecondary,
+  },
+  paymentCard: {
+    backgroundColor: COLORS.card,
+    borderRadius: 14,
+    padding: 14,
+    gap: 12,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  paymentCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  paymentCardTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: COLORS.teal,
+  },
+  paymentRemoveBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    backgroundColor: COLORS.redLight,
+  },
+  paymentRemoveBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: COLORS.red,
+  },
+  paymentCardRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  paymentCardField: {
+    flex: 1,
+    gap: 6,
+  },
   methodPicker: {
-    flex: 1.2,
+    flex: 1,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -1204,20 +1525,19 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: COLORS.border,
-    paddingHorizontal: 12,
-    paddingVertical: 13,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    minHeight: 48,
   },
-  methodText: {fontSize: 14, color: COLORS.textPrimary},
+  methodText: {fontSize: 14, color: COLORS.textPrimary, flex: 1},
   chevron: {fontSize: 14, color: COLORS.textSecondary},
-
-  // Dropdown
   dropdown: {
     backgroundColor: COLORS.card,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: COLORS.border,
     overflow: 'hidden',
-    marginTop: -6,
+    marginTop: 6,
   },
   dropdownItem: {
     paddingHorizontal: 14,
@@ -1225,11 +1545,46 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
   },
-  dropdownItemText: {fontSize: 14, color: COLORS.textPrimary},
+  dropdownItemText: {
+    fontSize: 14,
+    color: COLORS.textPrimary,
+  },
+
+  methodDropdown: {
+    backgroundColor: COLORS.card,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    overflow: 'hidden',
+  },
+  methodDropdownItem: {
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  methodDropdownText: {
+    fontSize: 14,
+    color: COLORS.textPrimary,
+  },
+  methodDropdownTextActive: {
+    color: COLORS.teal,
+    fontWeight: '700',
+  },
 
   // Add payment
-  addPaymentBtn: {alignSelf: 'flex-start'},
-  addPaymentText: {fontSize: 13, fontWeight: '700', color: COLORS.teal},
+  addPaymentBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderWidth: 1.5,
+    borderColor: COLORS.teal,
+    borderStyle: 'dashed',
+    borderRadius: 12,
+    paddingVertical: 14,
+  },
+  addPaymentText: {fontSize: 14, fontWeight: '700', color: COLORS.teal},
 
   // Status row
   statusRow: {
@@ -1302,6 +1657,19 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   shareBtnText: {fontSize: 15, fontWeight: '700', color: '#FFF'},
+  generateBtn: {
+    backgroundColor: COLORS.teal,
+    borderRadius: 14,
+    paddingVertical: 16,
+    alignItems: 'center',
+    marginTop: 10,
+    shadowColor: COLORS.teal,
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    shadowOffset: {width: 0, height: 4},
+    elevation: 5,
+  },
+  generateBtnText: {fontSize: 16, fontWeight: '800', color: '#FFF'},
 
   // Footer
   footer: {
@@ -1331,28 +1699,6 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: COLORS.textPrimary,
     textAlign: 'center',
-  },
-  datePickerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  datePickerInput: {
-    flex: 1,
-    backgroundColor: COLORS.inputBg,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 16,
-    color: COLORS.textPrimary,
-    textAlign: 'center',
-  },
-  datePickerSep: {
-    fontSize: 20,
-    color: COLORS.textSecondary,
-    fontWeight: '700',
   },
   datePickerActions: {
     flexDirection: 'row',
