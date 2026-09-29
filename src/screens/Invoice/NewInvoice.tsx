@@ -1,4 +1,4 @@
-import {useState, useEffect, useCallback} from 'react';
+import { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -12,84 +12,84 @@ import {
   SafeAreaView,
   TouchableOpacity,
   KeyboardAvoidingView,
-} from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
-import RNFS from 'react-native-fs';
+} from "react-native";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import RNFS from "react-native-fs";
 import {
   insertInvoice,
   getNextInvoiceNo,
   updateInvoicePayment,
   getFullInvoice,
-} from './../../database';
+} from "./../../database";
 
-import BASE from './../../constants/colors';
+import BASE from "./../../constants/colors";
 
 const COLORS = {
   ...BASE,
-  tealBg: '#EBF4F2',
-  inputBg: '#FFFFFF',
-  disabledBg: '#F0F5F4',
-  headerSub: 'rgba(255,255,255,0.7)',
-  stepActive: '#2E7D72',
-  stepInactive: '#B0C8C4',
-  amberLight: '#FEF3E2',
+  tealBg: "#EBF4F2",
+  inputBg: "#FFFFFF",
+  disabledBg: "#F0F5F4",
+  headerSub: "rgba(255,255,255,0.7)",
+  stepActive: "#2E7D72",
+  stepInactive: "#B0C8C4",
+  amberLight: "#FEF3E2",
 };
 
-const BILLING_TYPES = ['Per-Visit', 'Weekly', 'Package'];
+const BILLING_TYPES = ["Per-Visit", "Weekly", "Package"];
 
 const SERVICE_TAGS = [
-  'Home Rehab',
-  'Cupping',
-  'Initial Consultation',
-  'Online Consultation',
-  'Per-Session Visit',
-  '10-Visit Package',
-  '15-Visit Package',
-  '21-Visit Package',
-  '30-Visit Package',
-  'Consultation Fee',
-  'Package Payment',
+  "Home Rehab",
+  "Cupping",
+  "Initial Consultation",
+  "Online Consultation",
+  "Per-Session Visit",
+  "10-Visit Package",
+  "15-Visit Package",
+  "21-Visit Package",
+  "30-Visit Package",
+  "Consultation Fee",
+  "Package Payment",
 ];
 
 const SERVICE_PRICES: Record<string, string> = {
-  Cupping: '500',
-  'Other Therapy': '800',
-  'Initial Consultation': '500',
-  'Online Consultation': '400',
-  'Daily / Per-Session Visit': '1300',
-  '10-Visit Package': '5000',
-  '15-Visit Package': '7000',
-  '21-Visit Package': '9000',
-  '30-Visit Package': '12000',
-  'Home Physiotherapy Rehabilitation': '1500',
-  'Home Rehab': '1500',
-  'Consultation Fee': '500',
-  'Package Payment': '0',
+  Cupping: "500",
+  "Other Therapy": "800",
+  "Initial Consultation": "500",
+  "Online Consultation": "400",
+  "Daily / Per-Session Visit": "1300",
+  "10-Visit Package": "5000",
+  "15-Visit Package": "7000",
+  "21-Visit Package": "9000",
+  "30-Visit Package": "12000",
+  "Home Physiotherapy Rehabilitation": "1500",
+  "Home Rehab": "1500",
+  "Consultation Fee": "500",
+  "Package Payment": "0",
 };
 
 const UNIT_TAGS = [
-  'Session',
-  'Visit',
-  'Package',
-  'Month',
-  'Week',
-  'Day',
-  'Hour',
+  "Session",
+  "Visit",
+  "Package",
+  "Month",
+  "Week",
+  "Day",
+  "Hour",
 ];
 
-const PAYMENT_METHODS = ['Cash', 'UPI', 'Card', 'Bank Transfer', 'Cheque'];
+const PAYMENT_METHODS = ["Cash", "UPI", "Card", "Bank Transfer", "Cheque"];
 
 const STATUS_OPTIONS = [
-  'Due',
-  'Paid',
-  'Advance Paid',
-  'Partial Paid',
-  'Over Paid',
+  "Due",
+  "Paid",
+  "Advance Paid",
+  "Partial Paid",
+  "Over Paid",
 ];
 
 const formatDateString = (d: Date) => {
-  const dd = String(d.getDate()).padStart(2, '0');
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
   const yyyy = d.getFullYear();
   return `${dd}/${mm}/${yyyy}`;
 };
@@ -100,7 +100,7 @@ const generateInvoiceNo = async () => {
 };
 
 const parseDate = (str: string): Date | null => {
-  const parts = str.split('/');
+  const parts = str.split("/");
   if (parts.length === 3) {
     const d = parseInt(parts[0], 10);
     const m = parseInt(parts[1], 10) - 1;
@@ -116,7 +116,9 @@ const addDays = (date: Date, days: number) => {
   return d;
 };
 
-function FieldLabel({label, sub}: any) {
+const DEFAULT_DUE_DAYS = 3;
+
+function FieldLabel({ label, sub }: any) {
   return (
     <Text style={styles.fieldLabel}>
       {label}
@@ -148,7 +150,7 @@ function NativeDatePicker({
 
   const handleAndroidChange = useCallback(
     (event: any, date?: Date) => {
-      if (event?.type === 'set' && date) {
+      if (event?.type === "set" && date) {
         setValue(date);
         onSelect(formatDateString(date));
       }
@@ -159,7 +161,7 @@ function NativeDatePicker({
 
   const handleIOSChange = useCallback(
     (event: any, date?: Date) => {
-      if (event?.type === 'set' && date) {
+      if (event?.type === "set" && date) {
         setValue(date);
         onSelect(formatDateString(date));
       }
@@ -169,7 +171,7 @@ function NativeDatePicker({
 
   if (!visible) return null;
 
-  if (Platform.OS === 'android') {
+  if (Platform.OS === "android") {
     return (
       <DateTimePicker
         value={value}
@@ -185,11 +187,13 @@ function NativeDatePicker({
       visible={visible}
       transparent
       animationType="fade"
-      onRequestClose={onClose}>
+      onRequestClose={onClose}
+    >
       <TouchableOpacity
         style={styles.modalOverlay}
         activeOpacity={1}
-        onPress={onClose}>
+        onPress={onClose}
+      >
         <View style={styles.datePickerModal}>
           <Text style={styles.datePickerTitle}>Select Date</Text>
           <DateTimePicker
@@ -197,7 +201,7 @@ function NativeDatePicker({
             mode="date"
             display="inline"
             onChange={handleIOSChange}
-            style={{width: '100%'}}
+            style={{ width: "100%" }}
           />
           <View style={styles.datePickerActions}>
             <TouchableOpacity
@@ -208,13 +212,15 @@ function NativeDatePicker({
                 onSelect(formatDateString(t));
                 onClose();
               }}
-              activeOpacity={0.8}>
+              activeOpacity={0.8}
+            >
               <Text style={styles.datePickerTodayText}>Today</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.datePickerDoneBtn}
               onPress={onClose}
-              activeOpacity={0.8}>
+              activeOpacity={0.8}
+            >
               <Text style={styles.datePickerDoneText}>Done</Text>
             </TouchableOpacity>
           </View>
@@ -224,7 +230,7 @@ function NativeDatePicker({
   );
 }
 
-export default function NewInvoiceStep2({navigation, route}: any) {
+export default function NewInvoiceStep2({ navigation, route }: any) {
   const paramsPatient = route?.params?.patient;
   const today = new Date();
   const paramsPaymentStatus = route?.params?.paymentStatus || null;
@@ -236,7 +242,7 @@ export default function NewInvoiceStep2({navigation, route}: any) {
   const paramsExistingPayable = route?.params?.existingPayable || 0;
   const paramsExistingPayments = route?.params?.existingPayments || [];
 
-  const [invoiceNo, setInvoiceNo] = useState(paramsExistingInvoiceNo || '');
+  const [invoiceNo, setInvoiceNo] = useState(paramsExistingInvoiceNo || "");
 
   useEffect(() => {
     if (!paramsExistingInvoiceNo) {
@@ -246,14 +252,14 @@ export default function NewInvoiceStep2({navigation, route}: any) {
 
   useEffect(() => {
     if (paramsExistingInvoiceId) {
-      getFullInvoice(paramsExistingInvoiceId).then(inv => {
+      getFullInvoice(paramsExistingInvoiceId).then((inv) => {
         if (inv && inv.items && inv.items.length > 0) {
           setItems(
-            inv.items.map(it => ({
+            inv.items.map((it) => ({
               name: it.name,
               amount: String(it.unitPrice || 0),
               qty: String(it.qty || 1),
-              unit: it.unit || '',
+              unit: it.unit || "",
             })),
           );
         }
@@ -262,29 +268,31 @@ export default function NewInvoiceStep2({navigation, route}: any) {
   }, [paramsExistingInvoiceId]);
 
   const [invoiceDate, setInvoiceDate] = useState(formatDateString(today));
-  const [dueDate, setDueDate] = useState(formatDateString(addDays(today, 7)));
-  const [therapist, setTherapist] = useState('Dr. Yash Pratihasta, PT');
+  const [dueDate, setDueDate] = useState(
+    formatDateString(addDays(today, DEFAULT_DUE_DAYS)),
+  );
+  const [therapist, setTherapist] = useState("Dr. Yash Pratihasta, PT");
   const [selectedPatient, setSelectedPatient] = useState(paramsPatient || null);
-  const [billingType, setBillingType] = useState('Per-Visit');
+  const [billingType, setBillingType] = useState("Per-Visit");
   const [items, setItems] = useState<
-    {name: string; amount: string; qty: string; unit: string}[]
+    { name: string; amount: string; qty: string; unit: string }[]
   >([
     {
-      name: 'Home Rehab',
+      name: "Home Rehab",
       amount: String(paramsExistingPayable || 1000),
-      qty: '1',
-      unit: 'Session',
+      qty: "1",
+      unit: "Session",
     },
   ]);
-  const [customTag, setCustomTag] = useState('');
-  const [discount, setDiscount] = useState('0');
+  const [customTag, setCustomTag] = useState("");
+  const [discount, setDiscount] = useState("0");
   const [payments, setPayments] = useState([
     {
       amount:
         paramsDueAmount && parseInt(paramsDueAmount) > 0
           ? paramsDueAmount
-          : '0',
-      method: 'Cash',
+          : "0",
+      method: "Cash",
       date: formatDateString(today),
     },
   ]);
@@ -293,10 +301,10 @@ export default function NewInvoiceStep2({navigation, route}: any) {
     paramsPaymentStatus,
   );
   const [showStatusPicker, setShowStatusPicker] = useState(false);
-  const [note, setNote] = useState('');
+  const [note, setNote] = useState("");
   const [showNoteInput, setShowNoteInput] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState<
-    'invoice' | 'due' | {paymentIdx: number} | null
+    "invoice" | "due" | { paymentIdx: number } | null
   >(null);
 
   const totalAmount = items.reduce(
@@ -314,25 +322,25 @@ export default function NewInvoiceStep2({navigation, route}: any) {
 
   useEffect(() => {
     if (totalPaid === 0) {
-      setPaymentStatus('Due');
+      setPaymentStatus("Due");
     } else if (totalPaid >= payable) {
-      setPaymentStatus('Paid');
+      setPaymentStatus("Paid");
     } else {
-      setPaymentStatus('Partial Paid');
+      setPaymentStatus("Partial Paid");
     }
   }, [totalPaid, payable]);
 
   const getStatus = () => {
-    if (totalPaid === 0) return 'Due';
-    if (totalPaid >= payable) return 'Over Paid';
-    if (billingType === 'Package') return 'Advance';
-    if (totalPaid === totalAmount) return 'Paid';
-    return 'Partial Paid';
+    if (totalPaid === 0) return "Due";
+    if (totalPaid >= payable) return "Over Paid";
+    if (billingType === "Package") return "Advance";
+    if (totalPaid === totalAmount) return "Paid";
+    return "Partial Paid";
   };
 
   const effectiveStatus = paymentStatus || getStatus();
 
-  const description = items.map(it => it.name).join(' + ') || '—';
+  const description = items.map((it) => it.name).join(" + ") || "—";
 
   const buildInvoiceData = () => ({
     id: invoiceNo,
@@ -341,17 +349,17 @@ export default function NewInvoiceStep2({navigation, route}: any) {
     dueDate,
     therapist,
     billingType,
-    patient: selectedPatient || {name: 'New Patient', reg: 'VMCPTREG-0157'},
-    items: items.map(it => ({
+    patient: selectedPatient || { name: "New Patient", reg: "VMCPTREG-0157" },
+    items: items.map((it) => ({
       name: it.name,
       unitPrice: parseInt(it.amount) || 0,
       qty: parseInt(it.qty) || 1,
-      unit: it.unit || '',
+      unit: it.unit || "",
     })),
     total: totalAmount,
     discount: parseInt(discount) || 0,
     payable,
-    payments: payments.map(p => ({
+    payments: payments.map((p) => ({
       amount: parseInt(p.amount) || 0,
       method: p.method,
       date: p.date,
@@ -367,20 +375,20 @@ export default function NewInvoiceStep2({navigation, route}: any) {
   const saveInvoice = async () => {
     try {
       const data = buildInvoiceData();
-      const dir = RNFS.DocumentDirectoryPath + '/invoices';
+      const dir = RNFS.DocumentDirectoryPath + "/invoices";
       const exists = await RNFS.exists(dir);
       if (!exists) await RNFS.mkdir(dir);
-      const path = dir + '/' + invoiceNo.replace(/\//g, '-') + '.json';
-      await RNFS.writeFile(path, JSON.stringify(data, null, 2), 'utf8');
+      const path = dir + "/" + invoiceNo.replace(/\//g, "-") + ".json";
+      await RNFS.writeFile(path, JSON.stringify(data, null, 2), "utf8");
       if (paramsExistingInvoiceId) {
         const cumTotalPaid = data.totalPaid;
         const cumExtraPaid = Math.max(0, cumTotalPaid - data.payable);
         const cumBalanceDue = Math.max(0, data.payable - cumTotalPaid);
         const cumStatus =
-          cumTotalPaid >= data.payable ? 'Paid' : 'Partial Paid';
+          cumTotalPaid >= data.payable ? "Paid" : "Partial Paid";
         await updateInvoicePayment(
           paramsExistingInvoiceId,
-          payments.map(p => ({
+          payments.map((p) => ({
             amount: parseInt(p.amount) || 0,
             method: p.method,
             date: p.date,
@@ -415,9 +423,9 @@ export default function NewInvoiceStep2({navigation, route}: any) {
         });
       }
       setInvoiceNo(await getNextInvoiceNo());
-      Alert.alert('Saved', `Invoice saved successfully.`);
+      Alert.alert("Saved", `Invoice saved successfully.`);
     } catch (error: any) {
-      Alert.alert('Error', error?.message || 'Failed to save invoice.');
+      Alert.alert("Error", error?.message || "Failed to save invoice.");
     }
   };
 
@@ -427,7 +435,7 @@ export default function NewInvoiceStep2({navigation, route}: any) {
         ...p,
         date: p.date || invoiceDate,
       })),
-      ...payments.map(p => ({
+      ...payments.map((p) => ({
         amount: parseInt(p.amount) || 0,
         method: p.method,
         date: p.date,
@@ -435,16 +443,16 @@ export default function NewInvoiceStep2({navigation, route}: any) {
     ];
     const latestPayDate = allPayments.reduce(
       (latest: string, p: any) => (p.date && p.date > latest ? p.date : latest),
-      '',
+      "",
     );
-    navigation.navigate('PreviewInvoice', {
+    navigation.navigate("PreviewInvoice", {
       note,
       therapist,
       existingInvoiceId: paramsExistingInvoiceId,
       paymentReceiveDate: latestPayDate || invoiceDate,
       patient: selectedPatient || {
-        name: 'New Patient',
-        reg: 'VMCPTREG-0157',
+        name: "New Patient",
+        reg: "VMCPTREG-0157",
       },
       billing: {
         invoiceNo,
@@ -452,11 +460,11 @@ export default function NewInvoiceStep2({navigation, route}: any) {
         due: dueDate,
         type: billingType,
         service: description,
-        items: items.map(it => ({
+        items: items.map((it) => ({
           name: it.name,
           unitPrice: parseInt(it.amount) || 0,
           qty: parseInt(it.qty) || 1,
-          unit: it.unit || '',
+          unit: it.unit || "",
           amount: (parseInt(it.amount) || 0) * (parseInt(it.qty) || 1),
         })),
       },
@@ -476,8 +484,8 @@ export default function NewInvoiceStep2({navigation, route}: any) {
   };
 
   const addItem = (name: string) => {
-    const price = SERVICE_PRICES[name] || '0';
-    setItems([...items, {name, amount: price, qty: '1', unit: 'Session'}]);
+    const price = SERVICE_PRICES[name] || "0";
+    setItems([...items, { name, amount: price, qty: "1", unit: "Session" }]);
   };
 
   const removeItem = (idx: number) => {
@@ -485,14 +493,14 @@ export default function NewInvoiceStep2({navigation, route}: any) {
   };
 
   const updateItem = (idx: number, key: string, val: string) => {
-    setItems(items.map((it, i) => (i === idx ? {...it, [key]: val} : it)));
+    setItems(items.map((it, i) => (i === idx ? { ...it, [key]: val } : it)));
   };
 
   const addCustomItem = () => {
     const t = customTag.trim();
     if (t) {
-      setItems([...items, {name: t, amount: '0', qty: '1', unit: 'Session'}]);
-      setCustomTag('');
+      setItems([...items, { name: t, amount: "0", qty: "1", unit: "Session" }]);
+      setCustomTag("");
     }
   };
 
@@ -508,9 +516,9 @@ export default function NewInvoiceStep2({navigation, route}: any) {
   };
 
   const updatePayment = (idx: number, key: string, val: string) => {
-    if (key === 'amount') {
+    if (key === "amount") {
       const numVal = parseInt(val) || 0;
-      const isOverPaid = paymentStatus === 'Over Paid';
+      const isOverPaid = paymentStatus === "Over Paid";
       if (!isOverPaid) {
         const otherTotal = payments.reduce(
           (s, p, i) => s + (i !== idx ? parseInt(p.amount) || 0 : 0),
@@ -522,31 +530,33 @@ export default function NewInvoiceStep2({navigation, route}: any) {
         const maxAllowed = dueLimit - otherTotal;
         if (numVal > maxAllowed && maxAllowed > 0) {
           Alert.alert(
-            'Limit Exceeded',
+            "Limit Exceeded",
             `Payment amount cannot exceed the due amount of ₹${maxAllowed.toLocaleString(
-              'en-IN',
+              "en-IN",
             )}.`,
           );
           return;
         }
       }
     }
-    setPayments(payments.map((p, i) => (i === idx ? {...p, [key]: val} : p)));
+    setPayments(payments.map((p, i) => (i === idx ? { ...p, [key]: val } : p)));
   };
 
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.teal} />
       <KeyboardAvoidingView
-        style={{flex: 1}}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}>
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 88 : 0}
+      >
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backBtn}
             activeOpacity={0.8}
-            onPress={() => navigation.goBack()}>
+            onPress={() => navigation.goBack()}
+          >
             <Text style={styles.backArrow}>←</Text>
           </TouchableOpacity>
           <Text style={styles.headerTitle}>New Invoice</Text>
@@ -557,7 +567,8 @@ export default function NewInvoiceStep2({navigation, route}: any) {
           contentContainerStyle={styles.container}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="on-drag">
+          keyboardDismissMode="on-drag"
+        >
           {/* Step indicators */}
           <View style={styles.stepContainer}>
             <View style={styles.stepItem}>
@@ -598,22 +609,22 @@ export default function NewInvoiceStep2({navigation, route}: any) {
               <Text style={styles.avatarSmallText}>
                 {selectedPatient
                   ? (() => {
-                      const p = (selectedPatient.name || '')
+                      const p = (selectedPatient.name || "")
                         .trim()
                         .split(/\s+/);
                       return p.length > 1
-                        ? (p[0][0] || '') + (p[p.length - 1][0] || '')
-                        : p[0]?.[0] || '?';
+                        ? (p[0][0] || "") + (p[p.length - 1][0] || "")
+                        : p[0]?.[0] || "?";
                     })().toUpperCase()
-                  : 'NP'}
+                  : "NP"}
               </Text>
             </View>
             <View style={styles.patientInfo}>
               <Text style={styles.patientName}>
-                {selectedPatient?.name || 'New Patient'}
+                {selectedPatient?.name || "New Patient"}
               </Text>
               <Text style={styles.patientReg}>
-                {selectedPatient?.reg || 'VMCPTREG-0157 (assigned)'}
+                {selectedPatient?.reg || "VMCPTREG-0157 (assigned)"}
               </Text>
             </View>
             {/* <TouchableOpacity style={styles.changeBtn} activeOpacity={0.8} onPress={() => navigation.navigate('PatientList')}>
@@ -651,8 +662,9 @@ export default function NewInvoiceStep2({navigation, route}: any) {
               <FieldLabel label="INVOICE DATE" />
               <TouchableOpacity
                 style={styles.dateInput}
-                onPress={() => setShowDatePicker('invoice')}
-                activeOpacity={0.8}>
+                onPress={() => setShowDatePicker("invoice")}
+                activeOpacity={0.8}
+              >
                 <Text style={styles.dateText}>{invoiceDate}</Text>
                 <Text style={styles.calIcon}>📅</Text>
               </TouchableOpacity>
@@ -664,7 +676,7 @@ export default function NewInvoiceStep2({navigation, route}: any) {
             <View style={styles.fieldWrapper}>
               <FieldLabel label="BILLING TYPE" />
               <View style={styles.segmented}>
-                {BILLING_TYPES.map(t => (
+                {BILLING_TYPES.map((t) => (
                   <TouchableOpacity
                     key={t}
                     style={[
@@ -672,12 +684,14 @@ export default function NewInvoiceStep2({navigation, route}: any) {
                       billingType === t && styles.segBtnActive,
                     ]}
                     onPress={() => setBillingType(t)}
-                    activeOpacity={0.8}>
+                    activeOpacity={0.8}
+                  >
                     <Text
                       style={[
                         styles.segBtnText,
                         billingType === t && styles.segBtnTextActive,
-                      ]}>
+                      ]}
+                    >
                       {t}
                     </Text>
                   </TouchableOpacity>
@@ -689,12 +703,12 @@ export default function NewInvoiceStep2({navigation, route}: any) {
           {paramsPaymentStatus && !paramsExistingInvoiceNo && (
             <View style={styles.fieldWrapper}>
               <FieldLabel label="PAYMENT TYPE" />
-              {effectiveStatus === 'Partial Paid' && (
+              {effectiveStatus === "Partial Paid" && (
                 <View style={styles.partialBanner}>
                   <Text style={styles.partialBannerText}>Partial Payment</Text>
                 </View>
               )}
-              {effectiveStatus === 'Due' && (
+              {effectiveStatus === "Due" && (
                 <View style={styles.dueBanner}>
                   <Text style={styles.dueBannerText}>Due</Text>
                 </View>
@@ -708,8 +722,9 @@ export default function NewInvoiceStep2({navigation, route}: any) {
               <FieldLabel label="DUE DATE" sub="(auto-suggested)" />
               <TouchableOpacity
                 style={styles.dateInput}
-                onPress={() => setShowDatePicker('due')}
-                activeOpacity={0.8}>
+                onPress={() => setShowDatePicker("due")}
+                activeOpacity={0.8}
+              >
                 <Text style={styles.dateText}>{dueDate}</Text>
                 <Text style={styles.calIcon}>📅</Text>
               </TouchableOpacity>
@@ -722,19 +737,21 @@ export default function NewInvoiceStep2({navigation, route}: any) {
               <FieldLabel label="SERVICE ITEMS" />
               {/* Tag cloud as presets */}
               <View style={styles.tagCloud}>
-                {SERVICE_TAGS.map(tag => {
-                  const alreadyAdded = items.some(it => it.name === tag);
+                {SERVICE_TAGS.map((tag) => {
+                  const alreadyAdded = items.some((it) => it.name === tag);
                   return (
                     <TouchableOpacity
                       key={tag}
                       style={[styles.tag, alreadyAdded && styles.tagAdded]}
                       onPress={() => addItem(tag)}
-                      activeOpacity={0.75}>
+                      activeOpacity={0.75}
+                    >
                       <Text
                         style={[
                           styles.tagText,
                           alreadyAdded && styles.tagTextAdded,
-                        ]}>
+                        ]}
+                      >
                         {tag}
                       </Text>
                     </TouchableOpacity>
@@ -756,7 +773,8 @@ export default function NewInvoiceStep2({navigation, route}: any) {
                 <TouchableOpacity
                   style={styles.addTagBtn}
                   onPress={addCustomItem}
-                  activeOpacity={0.8}>
+                  activeOpacity={0.8}
+                >
                   <Text style={styles.addTagBtnText}>+ Add</Text>
                 </TouchableOpacity>
               </View>
@@ -768,13 +786,14 @@ export default function NewInvoiceStep2({navigation, route}: any) {
                     <TextInput
                       style={[styles.input, styles.itemNameInput]}
                       value={item.name}
-                      onChangeText={v => updateItem(idx, 'name', v)}
+                      onChangeText={(v) => updateItem(idx, "name", v)}
                       placeholderTextColor={COLORS.placeholder}
                     />
                     <TouchableOpacity
                       style={styles.removeBtn}
                       onPress={() => removeItem(idx)}
-                      activeOpacity={0.8}>
+                      activeOpacity={0.8}
+                    >
                       <Text style={styles.removeBtnText}>✕</Text>
                     </TouchableOpacity>
                   </View>
@@ -782,7 +801,7 @@ export default function NewInvoiceStep2({navigation, route}: any) {
                     <TextInput
                       style={[styles.input, styles.itemQtyInput]}
                       value={item.qty}
-                      onChangeText={v => updateItem(idx, 'qty', v)}
+                      onChangeText={(v) => updateItem(idx, "qty", v)}
                       keyboardType="numeric"
                       placeholder="Qty"
                       placeholderTextColor={COLORS.placeholder}
@@ -790,7 +809,7 @@ export default function NewInvoiceStep2({navigation, route}: any) {
                     <TextInput
                       style={[styles.input, styles.itemUnitInput]}
                       value={item.unit}
-                      onChangeText={v => updateItem(idx, 'unit', v)}
+                      onChangeText={(v) => updateItem(idx, "unit", v)}
                       placeholder="Unit"
                       keyboardType="default"
                       placeholderTextColor={COLORS.placeholder}
@@ -799,7 +818,7 @@ export default function NewInvoiceStep2({navigation, route}: any) {
                       <TextInput
                         style={[styles.input, styles.itemAmountInput]}
                         value={item.amount}
-                        onChangeText={v => updateItem(idx, 'amount', v)}
+                        onChangeText={(v) => updateItem(idx, "amount", v)}
                         keyboardType="numeric"
                         placeholder="Amount"
                         placeholderTextColor={COLORS.placeholder}
@@ -820,7 +839,7 @@ export default function NewInvoiceStep2({navigation, route}: any) {
               <FieldLabel label="TOTAL AMOUNT (₹)" />
               <View style={[styles.input, styles.disabledInput]}>
                 <Text style={styles.disabledText}>
-                  {totalAmount.toLocaleString('en-IN')}
+                  {totalAmount.toLocaleString("en-IN")}
                 </Text>
               </View>
             </View>
@@ -842,7 +861,7 @@ export default function NewInvoiceStep2({navigation, route}: any) {
               <FieldLabel label="PAYABLE AMOUNT (₹)" />
               <View style={[styles.input, styles.disabledInput]}>
                 <Text style={styles.disabledText}>
-                  {payable.toLocaleString('en-IN')}
+                  {payable.toLocaleString("en-IN")}
                 </Text>
               </View>
             </View>
@@ -853,7 +872,8 @@ export default function NewInvoiceStep2({navigation, route}: any) {
               <TouchableOpacity
                 style={styles.methodPicker}
                 onPress={() => setShowStatusPicker(!showStatusPicker)}
-                activeOpacity={0.8}>
+                activeOpacity={0.8}
+              >
                 <Text style={styles.methodText}>
                   {paymentStatus || getStatus()}
                 </Text>
@@ -861,14 +881,15 @@ export default function NewInvoiceStep2({navigation, route}: any) {
               </TouchableOpacity>
               {showStatusPicker && (
                 <View style={styles.dropdown}>
-                  {STATUS_OPTIONS.map(s => (
+                  {STATUS_OPTIONS.map((s) => (
                     <TouchableOpacity
                       key={s}
                       style={styles.dropdownItem}
                       onPress={() => {
                         setPaymentStatus(s);
                         setShowStatusPicker(false);
-                      }}>
+                      }}
+                    >
                       <Text style={styles.dropdownItemText}>{s}</Text>
                     </TouchableOpacity>
                   ))}
@@ -878,12 +899,14 @@ export default function NewInvoiceStep2({navigation, route}: any) {
                       onPress={() => {
                         setPaymentStatus(null);
                         setShowStatusPicker(false);
-                      }}>
+                      }}
+                    >
                       <Text
                         style={[
                           styles.dropdownItemText,
-                          {color: COLORS.textSecondary},
-                        ]}>
+                          { color: COLORS.textSecondary },
+                        ]}
+                      >
                         Auto
                       </Text>
                     </TouchableOpacity>
@@ -905,7 +928,7 @@ export default function NewInvoiceStep2({navigation, route}: any) {
                   </View>
                   <View style={styles.prevPaymentRow}>
                     <Text style={styles.prevPaymentAmount}>
-                      ₹{p.amount.toLocaleString('en-IN')}
+                      ₹{p.amount.toLocaleString("en-IN")}
                     </Text>
                     {p.date ? (
                       <Text style={styles.prevPaymentDate}>{p.date}</Text>
@@ -923,7 +946,8 @@ export default function NewInvoiceStep2({navigation, route}: any) {
                     <TouchableOpacity
                       style={styles.paymentRemoveBtn}
                       onPress={() => removePayment(idx)}
-                      activeOpacity={0.7}>
+                      activeOpacity={0.7}
+                    >
                       <Text style={styles.paymentRemoveBtnText}>Remove</Text>
                     </TouchableOpacity>
                   )}
@@ -935,7 +959,7 @@ export default function NewInvoiceStep2({navigation, route}: any) {
                     <TextInput
                       style={styles.input}
                       value={p.amount}
-                      onChangeText={v => updatePayment(idx, 'amount', v)}
+                      onChangeText={(v) => updatePayment(idx, "amount", v)}
                       keyboardType="numeric"
                       placeholder="0"
                       placeholderTextColor={COLORS.placeholder}
@@ -950,7 +974,8 @@ export default function NewInvoiceStep2({navigation, route}: any) {
                           showMethodPicker === idx ? null : idx,
                         )
                       }
-                      activeOpacity={0.8}>
+                      activeOpacity={0.8}
+                    >
                       <Text style={styles.methodText}>{p.method}</Text>
                       <Text style={styles.chevron}>⌄</Text>
                     </TouchableOpacity>
@@ -961,10 +986,11 @@ export default function NewInvoiceStep2({navigation, route}: any) {
                   <FieldLabel label="RECEIVED DATE" />
                   <TouchableOpacity
                     style={styles.dateInput}
-                    onPress={() => setShowDatePicker({paymentIdx: idx})}
-                    activeOpacity={0.8}>
+                    onPress={() => setShowDatePicker({ paymentIdx: idx })}
+                    activeOpacity={0.8}
+                  >
                     <Text style={styles.dateText}>
-                      {p.date || 'Select date'}
+                      {p.date || "Select date"}
                     </Text>
                     <Text style={styles.calIcon}>📅</Text>
                   </TouchableOpacity>
@@ -972,19 +998,21 @@ export default function NewInvoiceStep2({navigation, route}: any) {
 
                 {showMethodPicker === idx && (
                   <View style={styles.methodDropdown}>
-                    {PAYMENT_METHODS.map(m => (
+                    {PAYMENT_METHODS.map((m) => (
                       <TouchableOpacity
                         key={m}
                         style={styles.methodDropdownItem}
                         onPress={() => {
-                          updatePayment(idx, 'method', m);
+                          updatePayment(idx, "method", m);
                           setShowMethodPicker(null);
-                        }}>
+                        }}
+                      >
                         <Text
                           style={[
                             styles.methodDropdownText,
                             p.method === m && styles.methodDropdownTextActive,
-                          ]}>
+                          ]}
+                        >
                           {m}
                         </Text>
                       </TouchableOpacity>
@@ -1008,23 +1036,23 @@ export default function NewInvoiceStep2({navigation, route}: any) {
                 <FieldLabel label="TOTAL PAID (₹)" />
                 <View style={[styles.input, styles.disabledInput]}>
                   <Text style={styles.disabledText}>
-                    {totalPaid.toLocaleString('en-IN')}
+                    {totalPaid.toLocaleString("en-IN")}
                   </Text>
                 </View>
               </View>
               <View style={styles.colHalf}>
                 <FieldLabel
                   label={
-                    billingType === 'Package'
-                      ? 'ADVANCE PAID (₹)'
-                      : 'EXTRA PAID (₹)'
+                    billingType === "Package"
+                      ? "ADVANCE PAID (₹)"
+                      : "EXTRA PAID (₹)"
                   }
                 />
                 <View style={[styles.input, styles.disabledInput]}>
                   <Text style={styles.disabledText}>
-                    {billingType === 'Package'
-                      ? totalPaid.toLocaleString('en-IN')
-                      : extraPaid.toLocaleString('en-IN')}
+                    {billingType === "Package"
+                      ? totalPaid.toLocaleString("en-IN")
+                      : extraPaid.toLocaleString("en-IN")}
                   </Text>
                 </View>
               </View>
@@ -1034,7 +1062,7 @@ export default function NewInvoiceStep2({navigation, route}: any) {
               <FieldLabel label="BALANCE DUE (₹)" />
               <View style={[styles.input, styles.disabledInput]}>
                 <Text style={styles.disabledText}>
-                  {balanceDue.toLocaleString('en-IN')}
+                  {balanceDue.toLocaleString("en-IN")}
                 </Text>
               </View>
             </View>
@@ -1061,7 +1089,8 @@ export default function NewInvoiceStep2({navigation, route}: any) {
             <TouchableOpacity
               style={styles.shareBtn}
               activeOpacity={0.85}
-              onPress={handlePreview}>
+              onPress={handlePreview}
+            >
               <Text style={styles.shareBtnText}>Preview</Text>
             </TouchableOpacity>
           </View>
@@ -1077,26 +1106,27 @@ export default function NewInvoiceStep2({navigation, route}: any) {
       <NativeDatePicker
         visible={showDatePicker !== null}
         currentDate={
-          showDatePicker === 'invoice'
+          showDatePicker === "invoice"
             ? invoiceDate
-            : showDatePicker === 'due'
+            : showDatePicker === "due"
             ? dueDate
-            : showDatePicker && typeof showDatePicker === 'object'
+            : showDatePicker && typeof showDatePicker === "object"
             ? payments[showDatePicker.paymentIdx]?.date ||
               formatDateString(new Date())
             : formatDateString(new Date())
         }
         onSelect={(d: string) => {
-          if (showDatePicker === 'invoice') {
+          if (showDatePicker === "invoice") {
             setInvoiceDate(d);
             const parsed = parseDate(d);
-            if (parsed) setDueDate(formatDateString(addDays(parsed, 7)));
-          } else if (showDatePicker === 'due') {
+            if (parsed)
+              setDueDate(formatDateString(addDays(parsed, DEFAULT_DUE_DAYS)));
+          } else if (showDatePicker === "due") {
             setDueDate(d);
-          } else if (showDatePicker && typeof showDatePicker === 'object') {
+          } else if (showDatePicker && typeof showDatePicker === "object") {
             const idx = showDatePicker.paymentIdx;
             setPayments(
-              payments.map((p, i) => (i === idx ? {...p, date: d} : p)),
+              payments.map((p, i) => (i === idx ? { ...p, date: d } : p)),
             );
           }
         }}
@@ -1107,13 +1137,13 @@ export default function NewInvoiceStep2({navigation, route}: any) {
 }
 
 const styles = StyleSheet.create({
-  safe: {flex: 1, backgroundColor: COLORS.teal},
+  safe: { flex: 1, backgroundColor: COLORS.teal },
 
   // Header
   header: {
     backgroundColor: COLORS.teal,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 20,
@@ -1123,20 +1153,20 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "rgba(255,255,255,0.2)",
+    alignItems: "center",
+    justifyContent: "center",
   },
-  backArrow: {fontSize: 18, color: '#FFF', lineHeight: 22},
+  backArrow: { fontSize: 18, color: "#FFF", lineHeight: 22 },
   headerTitle: {
     fontSize: 22,
-    fontWeight: '800',
+    fontWeight: "800",
     color: COLORS.headerText,
     letterSpacing: -0.4,
   },
 
   // Scroll
-  scroll: {flex: 1, backgroundColor: COLORS.bg},
+  scroll: { flex: 1, backgroundColor: COLORS.bg },
   container: {
     flexGrow: 1,
     paddingHorizontal: 16,
@@ -1147,14 +1177,14 @@ const styles = StyleSheet.create({
 
   // Step indicator
   stepContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "center",
     marginBottom: 18,
     paddingHorizontal: 8,
   },
   stepItem: {
-    alignItems: 'center',
+    alignItems: "center",
     width: 64,
   },
   stepCircle: {
@@ -1164,8 +1194,8 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.card,
     borderWidth: 2,
     borderColor: COLORS.stepInactive,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     marginBottom: 5,
   },
   stepCircleDone: {
@@ -1176,29 +1206,29 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.card,
     borderColor: COLORS.teal,
     shadowColor: COLORS.teal,
-    shadowOffset: {width: 0, height: 2},
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 6,
     elevation: 4,
   },
   stepCheckMark: {
     fontSize: 11,
-    fontWeight: '700',
-    color: '#FFFFFF',
+    fontWeight: "700",
+    color: "#FFFFFF",
   },
   stepNumberActive: {
     fontSize: 10,
-    fontWeight: '700',
+    fontWeight: "700",
     color: COLORS.teal,
   },
   stepNumberInactive: {
     fontSize: 10,
-    fontWeight: '700',
+    fontWeight: "700",
     color: COLORS.stepInactive,
   },
   stepLabel: {
     fontSize: 11,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.stepInactive,
     letterSpacing: 0.2,
   },
@@ -1207,7 +1237,7 @@ const styles = StyleSheet.create({
   },
   stepLabelActive: {
     color: COLORS.teal,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   stepConnector: {
     flex: 1,
@@ -1216,16 +1246,16 @@ const styles = StyleSheet.create({
     borderRadius: 1.5,
     marginTop: 10,
     marginHorizontal: -4,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   stepConnectorFill: {
-    width: '0%',
-    height: '100%',
+    width: "0%",
+    height: "100%",
     backgroundColor: COLORS.teal,
     borderRadius: 1.5,
   },
   stepConnectorActive: {
-    width: '100%',
+    width: "100%",
   },
 
   // Patient card
@@ -1233,13 +1263,13 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.card,
     borderRadius: 16,
     padding: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 12,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOpacity: 0.04,
     shadowRadius: 6,
-    shadowOffset: {width: 0, height: 2},
+    shadowOffset: { width: 0, height: 2 },
     elevation: 2,
   },
   avatarSmall: {
@@ -1247,23 +1277,23 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: 22,
     backgroundColor: COLORS.tealLight,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
-  avatarSmallText: {fontSize: 13, fontWeight: '700', color: COLORS.teal},
-  patientInfo: {flex: 1},
-  patientName: {fontSize: 15, fontWeight: '700', color: COLORS.textPrimary},
-  patientReg: {fontSize: 12, color: COLORS.textSecondary},
+  avatarSmallText: { fontSize: 13, fontWeight: "700", color: COLORS.teal },
+  patientInfo: { flex: 1 },
+  patientName: { fontSize: 15, fontWeight: "700", color: COLORS.textPrimary },
+  patientReg: { fontSize: 12, color: COLORS.textSecondary },
   partialBanner: {
     backgroundColor: COLORS.violetLight,
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 6,
-    alignSelf: 'flex-start',
+    alignSelf: "flex-start",
   },
   partialBannerText: {
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: "700",
     color: COLORS.violet,
   },
   dueBanner: {
@@ -1271,11 +1301,11 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 6,
-    alignSelf: 'flex-start',
+    alignSelf: "flex-start",
   },
   dueBannerText: {
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: "700",
     color: COLORS.orange,
   },
   changeBtn: {
@@ -1285,24 +1315,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
   },
-  changeBtnText: {fontSize: 13, fontWeight: '700', color: COLORS.teal},
+  changeBtnText: { fontSize: 13, fontWeight: "700", color: COLORS.teal },
 
   // Two col
-  twoCol: {flexDirection: 'row', gap: 10},
-  colWide: {flex: 12, gap: 6},
-  colHalf: {flex: 8, gap: 6},
+  twoCol: { flexDirection: "row", gap: 10 },
+  colWide: { flex: 12, gap: 6 },
+  colHalf: { flex: 8, gap: 6 },
 
   // Fields
-  fieldWrapper: {gap: 8},
+  fieldWrapper: { gap: 8 },
   fieldLabel: {
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: "700",
     color: COLORS.label,
     letterSpacing: 0.8,
   },
   fieldLabelSub: {
     fontSize: 11,
-    fontWeight: '400',
+    fontWeight: "400",
     color: COLORS.textSecondary,
   },
 
@@ -1317,9 +1347,9 @@ const styles = StyleSheet.create({
   },
   disabledInput: {
     backgroundColor: COLORS.disabledBg,
-    justifyContent: 'center',
+    justifyContent: "center",
   },
-  disabledText: {fontSize: 14, color: COLORS.textSecondary},
+  disabledText: { fontSize: 14, color: COLORS.textSecondary },
 
   // Date input
   dateInput: {
@@ -1328,16 +1358,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.border,
     padding: 18,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
-  dateText: {fontSize: 14, color: COLORS.textPrimary},
-  calIcon: {fontSize: 16},
+  dateText: { fontSize: 14, color: COLORS.textPrimary },
+  calIcon: { fontSize: 16 },
 
   // Billing type segmented
   segmented: {
-    flexDirection: 'row',
+    flexDirection: "row",
     backgroundColor: COLORS.tealBg,
     borderRadius: 12,
     padding: 4,
@@ -1347,14 +1377,14 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 10,
     borderRadius: 10,
-    alignItems: 'center',
+    alignItems: "center",
   },
-  segBtnActive: {backgroundColor: COLORS.teal},
-  segBtnText: {fontSize: 13, fontWeight: '600', color: COLORS.teal},
-  segBtnTextActive: {color: '#FFF'},
+  segBtnActive: { backgroundColor: COLORS.teal },
+  segBtnText: { fontSize: 13, fontWeight: "600", color: COLORS.teal },
+  segBtnTextActive: { color: "#FFF" },
 
   // Tag cloud
-  tagCloud: {flexDirection: 'row', flexWrap: 'wrap', gap: 8},
+  tagCloud: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   tag: {
     borderWidth: 1.5,
     borderColor: COLORS.border,
@@ -1363,12 +1393,12 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     backgroundColor: COLORS.card,
   },
-  tagAdded: {backgroundColor: COLORS.tealLight, borderColor: COLORS.teal},
-  tagText: {fontSize: 13, fontWeight: '600', color: COLORS.textPrimary},
-  tagTextAdded: {color: COLORS.teal},
+  tagAdded: { backgroundColor: COLORS.tealLight, borderColor: COLORS.teal },
+  tagText: { fontSize: 13, fontWeight: "600", color: COLORS.textPrimary },
+  tagTextAdded: { color: COLORS.teal },
 
   // Add tag row
-  addTagRow: {flexDirection: 'row', gap: 8, marginTop: 4},
+  addTagRow: { flexDirection: "row", gap: 8, marginTop: 4 },
   addTagInput: {
     flex: 1,
     backgroundColor: COLORS.card,
@@ -1385,10 +1415,10 @@ const styles = StyleSheet.create({
     borderColor: COLORS.teal,
     borderRadius: 12,
     paddingHorizontal: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
-  addTagBtnText: {fontSize: 13, fontWeight: '700', color: COLORS.teal},
+  addTagBtnText: { fontSize: 13, fontWeight: "700", color: COLORS.teal },
 
   // Item card
   itemCard: {
@@ -1399,13 +1429,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.border,
   },
-  itemRow: {flexDirection: 'row', gap: 8, alignItems: 'center'},
-  itemNameInput: {flex: 1},
-  itemMetaRow: {flexDirection: 'row', gap: 8, alignItems: 'center'},
-  itemQtyInput: {width: 100, textAlign: 'center'},
-  itemUnitInput: {width: 100, textAlign: 'center'},
-  itemAmountWrapper: {flex: 1},
-  itemAmountInput: {textAlign: 'right'},
+  itemRow: { flexDirection: "row", gap: 8, alignItems: "center" },
+  itemNameInput: { flex: 1 },
+  itemMetaRow: { flexDirection: "row", gap: 8, alignItems: "center" },
+  itemQtyInput: { width: 100, textAlign: "center" },
+  itemUnitInput: { width: 100, textAlign: "center" },
+  itemAmountWrapper: { flex: 1 },
+  itemAmountInput: { textAlign: "right" },
 
   // Remove btn
   removeBtn: {
@@ -1413,10 +1443,10 @@ const styles = StyleSheet.create({
     height: 36,
     borderRadius: 18,
     backgroundColor: COLORS.redLight,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
-  removeBtnText: {fontSize: 14, color: COLORS.red, fontWeight: '700'},
+  removeBtnText: { fontSize: 14, color: COLORS.red, fontWeight: "700" },
 
   // Amount card
   amountCard: {
@@ -1424,15 +1454,15 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
     gap: 12,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOpacity: 0.04,
     shadowRadius: 6,
-    shadowOffset: {width: 0, height: 2},
+    shadowOffset: { width: 0, height: 2 },
     elevation: 2,
   },
   amountTitle: {
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: "800",
     color: COLORS.teal,
     letterSpacing: 0.8,
     marginBottom: -2,
@@ -1440,40 +1470,40 @@ const styles = StyleSheet.create({
 
   // Payment row
   prevPaymentCard: {
-    backgroundColor: COLORS.tealBg || '#EBF4F2',
+    backgroundColor: COLORS.tealBg || "#EBF4F2",
     borderRadius: 12,
     padding: 14,
     gap: 6,
   },
   prevPaymentHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 8,
   },
   prevPaymentBadge: {
     fontSize: 10,
-    fontWeight: '700',
-    color: '#FFF',
+    fontWeight: "700",
+    color: "#FFF",
     backgroundColor: COLORS.teal,
     borderRadius: 6,
     paddingHorizontal: 8,
     paddingVertical: 3,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   prevPaymentMethod: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.textSecondary,
   },
   prevPaymentAmount: {
     fontSize: 18,
-    fontWeight: '800',
+    fontWeight: "800",
     color: COLORS.textPrimary,
   },
   prevPaymentRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   prevPaymentDate: {
     fontSize: 13,
@@ -1488,13 +1518,13 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
   },
   paymentCardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   paymentCardTitle: {
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: "700",
     color: COLORS.teal,
   },
   paymentRemoveBtn: {
@@ -1505,11 +1535,11 @@ const styles = StyleSheet.create({
   },
   paymentRemoveBtnText: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.red,
   },
   paymentCardRow: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 10,
   },
   paymentCardField: {
@@ -1518,9 +1548,9 @@ const styles = StyleSheet.create({
   },
   methodPicker: {
     flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     backgroundColor: COLORS.inputBg,
     borderRadius: 12,
     borderWidth: 1,
@@ -1529,14 +1559,14 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     minHeight: 48,
   },
-  methodText: {fontSize: 14, color: COLORS.textPrimary, flex: 1},
-  chevron: {fontSize: 14, color: COLORS.textSecondary},
+  methodText: { fontSize: 14, color: COLORS.textPrimary, flex: 1 },
+  chevron: { fontSize: 14, color: COLORS.textSecondary },
   dropdown: {
     backgroundColor: COLORS.card,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: COLORS.border,
-    overflow: 'hidden',
+    overflow: "hidden",
     marginTop: 6,
   },
   dropdownItem: {
@@ -1555,7 +1585,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: COLORS.border,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   methodDropdownItem: {
     paddingHorizontal: 14,
@@ -1569,28 +1599,28 @@ const styles = StyleSheet.create({
   },
   methodDropdownTextActive: {
     color: COLORS.teal,
-    fontWeight: '700',
+    fontWeight: "700",
   },
 
   // Add payment
   addPaymentBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     gap: 6,
     borderWidth: 1.5,
     borderColor: COLORS.teal,
-    borderStyle: 'dashed',
+    borderStyle: "dashed",
     borderRadius: 12,
     paddingVertical: 14,
   },
-  addPaymentText: {fontSize: 14, fontWeight: '700', color: COLORS.teal},
+  addPaymentText: { fontSize: 14, fontWeight: "700", color: COLORS.teal },
 
   // Status row
   statusRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   statusBadge: {
     backgroundColor: COLORS.tealLight,
@@ -1598,7 +1628,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 6,
   },
-  statusBadgeText: {fontSize: 12, fontWeight: '700', color: COLORS.teal},
+  statusBadgeText: { fontSize: 12, fontWeight: "700", color: COLORS.teal },
 
   // Note button
   noteBtn: {
@@ -1606,9 +1636,9 @@ const styles = StyleSheet.create({
     borderColor: COLORS.teal,
     borderRadius: 12,
     paddingVertical: 13,
-    alignItems: 'center',
+    alignItems: "center",
   },
-  noteBtnText: {fontSize: 14, fontWeight: '700', color: COLORS.teal},
+  noteBtnText: { fontSize: 14, fontWeight: "700", color: COLORS.teal },
   noteInput: {
     marginHorizontal: 0,
     marginTop: 8,
@@ -1620,7 +1650,7 @@ const styles = StyleSheet.create({
     color: COLORS.textPrimary,
     backgroundColor: COLORS.card,
     minHeight: 80,
-    textAlignVertical: 'top',
+    textAlignVertical: "top",
   },
   noteDisplay: {
     marginHorizontal: 20,
@@ -1634,48 +1664,48 @@ const styles = StyleSheet.create({
   },
 
   // Actions
-  actionRow: {flexDirection: 'row', gap: 10},
+  actionRow: { flexDirection: "row", gap: 10 },
   draftBtn: {
     flex: 1,
     borderWidth: 1.5,
     borderColor: COLORS.teal,
     borderRadius: 14,
     paddingVertical: 15,
-    alignItems: 'center',
+    alignItems: "center",
   },
-  draftBtnText: {fontSize: 15, fontWeight: '700', color: COLORS.teal},
+  draftBtnText: { fontSize: 15, fontWeight: "700", color: COLORS.teal },
   shareBtn: {
     flex: 1.4,
     backgroundColor: COLORS.teal,
     borderRadius: 14,
     paddingVertical: 15,
-    alignItems: 'center',
+    alignItems: "center",
     shadowColor: COLORS.teal,
     shadowOpacity: 0.3,
     shadowRadius: 8,
-    shadowOffset: {width: 0, height: 4},
+    shadowOffset: { width: 0, height: 4 },
     elevation: 4,
   },
-  shareBtnText: {fontSize: 15, fontWeight: '700', color: '#FFF'},
+  shareBtnText: { fontSize: 15, fontWeight: "700", color: "#FFF" },
   generateBtn: {
     backgroundColor: COLORS.teal,
     borderRadius: 14,
     paddingVertical: 16,
-    alignItems: 'center',
+    alignItems: "center",
     marginTop: 10,
     shadowColor: COLORS.teal,
     shadowOpacity: 0.3,
     shadowRadius: 10,
-    shadowOffset: {width: 0, height: 4},
+    shadowOffset: { width: 0, height: 4 },
     elevation: 5,
   },
-  generateBtnText: {fontSize: 16, fontWeight: '800', color: '#FFF'},
+  generateBtnText: { fontSize: 16, fontWeight: "800", color: "#FFF" },
 
   // Footer
   footer: {
     fontSize: 12,
     color: COLORS.textSecondary,
-    textAlign: 'center',
+    textAlign: "center",
     lineHeight: 18,
     paddingHorizontal: 8,
   },
@@ -1683,27 +1713,27 @@ const styles = StyleSheet.create({
   // Date picker modal
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   datePickerModal: {
     backgroundColor: COLORS.card,
     borderRadius: 16,
     padding: 20,
-    width: '80%',
+    width: "80%",
     gap: 16,
   },
   datePickerTitle: {
     fontSize: 16,
-    fontWeight: '800',
+    fontWeight: "800",
     color: COLORS.textPrimary,
-    textAlign: 'center',
+    textAlign: "center",
   },
   datePickerActions: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 10,
-    justifyContent: 'flex-end',
+    justifyContent: "flex-end",
   },
   datePickerTodayBtn: {
     borderWidth: 1.5,
@@ -1714,7 +1744,7 @@ const styles = StyleSheet.create({
   },
   datePickerTodayText: {
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: "700",
     color: COLORS.teal,
   },
   datePickerDoneBtn: {
@@ -1725,7 +1755,7 @@ const styles = StyleSheet.create({
   },
   datePickerDoneText: {
     fontSize: 13,
-    fontWeight: '700',
-    color: '#FFF',
+    fontWeight: "700",
+    color: "#FFF",
   },
 });
