@@ -6,10 +6,8 @@ import {
   Modal,
   Platform,
   TextInput,
-  StatusBar,
   StyleSheet,
   ScrollView,
-  SafeAreaView,
   TouchableOpacity,
   KeyboardAvoidingView,
 } from "react-native";
@@ -20,9 +18,10 @@ import {
   getNextInvoiceNo,
   updateInvoicePayment,
   getFullInvoice,
-} from "./../../database";
+} from "../../database";
 
-import BASE from "./../../constants/colors";
+import BASE from "../../constants/colors";
+import ScreenWrapper, { BackButton } from "../../components/ScreenWrapper";
 
 const COLORS = {
   ...BASE,
@@ -79,6 +78,8 @@ const UNIT_TAGS = [
 
 const PAYMENT_METHODS = ["Cash", "UPI", "Card", "Bank Transfer", "Cheque"];
 
+const PAYMENT_TERM_DAYS = 3;
+
 const STATUS_OPTIONS = [
   "Due",
   "Paid",
@@ -115,8 +116,6 @@ const addDays = (date: Date, days: number) => {
   d.setDate(d.getDate() + days);
   return d;
 };
-
-const DEFAULT_DUE_DAYS = 3;
 
 function FieldLabel({ label, sub }: any) {
   return (
@@ -269,7 +268,7 @@ export default function NewInvoiceStep2({ navigation, route }: any) {
 
   const [invoiceDate, setInvoiceDate] = useState(formatDateString(today));
   const [dueDate, setDueDate] = useState(
-    formatDateString(addDays(today, DEFAULT_DUE_DAYS)),
+    formatDateString(addDays(today, PAYMENT_TERM_DAYS)),
   );
   const [therapist, setTherapist] = useState("Dr. Yash Pratihasta, PT");
   const [selectedPatient, setSelectedPatient] = useState(paramsPatient || null);
@@ -543,25 +542,16 @@ export default function NewInvoiceStep2({ navigation, route }: any) {
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.teal} />
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 88 : 0}
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 88 : 0}
+    >
+      <ScreenWrapper
+        title="New Invoice"
+        headerLeft={<BackButton onPress={() => navigation.goBack()} />}
+        scrollable={false}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backBtn}
-            activeOpacity={0.8}
-            onPress={() => navigation.goBack()}
-          >
-            <Text style={styles.backArrow}>←</Text>
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>New Invoice</Text>
-        </View>
-
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={styles.container}
@@ -1100,7 +1090,7 @@ export default function NewInvoiceStep2({ navigation, route }: any) {
             shared.
           </Text>
         </ScrollView>
-      </KeyboardAvoidingView>
+      </ScreenWrapper>
 
       {/* Date Picker */}
       <NativeDatePicker
@@ -1119,8 +1109,9 @@ export default function NewInvoiceStep2({ navigation, route }: any) {
           if (showDatePicker === "invoice") {
             setInvoiceDate(d);
             const parsed = parseDate(d);
-            if (parsed)
-              setDueDate(formatDateString(addDays(parsed, DEFAULT_DUE_DAYS)));
+            if (parsed) {
+              setDueDate(formatDateString(addDays(parsed, PAYMENT_TERM_DAYS)));
+            }
           } else if (showDatePicker === "due") {
             setDueDate(d);
           } else if (showDatePicker && typeof showDatePicker === "object") {
@@ -1132,39 +1123,11 @@ export default function NewInvoiceStep2({ navigation, route }: any) {
         }}
         onClose={() => setShowDatePicker(null)}
       />
-    </SafeAreaView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: COLORS.teal },
-
-  // Header
-  header: {
-    backgroundColor: COLORS.teal,
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 20,
-    gap: 12,
-  },
-  backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "rgba(255,255,255,0.2)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  backArrow: { fontSize: 18, color: "#FFF", lineHeight: 22 },
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: "800",
-    color: COLORS.headerText,
-    letterSpacing: -0.4,
-  },
-
   // Scroll
   scroll: { flex: 1, backgroundColor: COLORS.bg },
   container: {

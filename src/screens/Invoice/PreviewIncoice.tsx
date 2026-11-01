@@ -1,37 +1,36 @@
-import React, {useState, useEffect} from 'react';
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
   TouchableOpacity,
   ScrollView,
   StyleSheet,
-  SafeAreaView,
-  StatusBar,
   Alert,
   Image,
   ActivityIndicator,
-} from 'react-native';
-import RNHTMLtoPDF from 'react-native-html-to-pdf';
-import RNFS from 'react-native-fs';
+} from "react-native";
+import RNHTMLtoPDF from "react-native-html-to-pdf";
+import RNFS from "react-native-fs";
 import {
   updateInvoicePdfPath,
   updateInvoicePayment,
   insertInvoice,
   getClinicSettings,
   getFullInvoice,
-} from './../../database';
+} from "../../database";
 
-import BASE from './../../constants/colors';
-import ReusableAlert from './../../components/ReusableAlert';
-import {useReusableAlert} from './../../components/useReusableAlert';
+import BASE from "../../constants/colors";
+import ReusableAlert from "../../components/ReusableAlert";
+import { useReusableAlert } from "../../components/useReusableAlert";
+import ScreenWrapper, { BackButton } from "../../components/ScreenWrapper";
 
 const COLORS = {
   ...BASE,
-  border: '#E8F0EF',
-  tealBg: '#EBF4F2',
+  border: "#E8F0EF",
+  tealBg: "#EBF4F2",
 };
 
-function SectionCard({title, onEdit, children}: any) {
+function SectionCard({ title, onEdit, children }: any) {
   return (
     <View style={styles.card}>
       <View style={styles.cardHeader}>
@@ -42,7 +41,7 @@ function SectionCard({title, onEdit, children}: any) {
   );
 }
 
-function Row({label, value, bold, dimLabel}: any) {
+function Row({ label, value, bold, dimLabel }: any) {
   return (
     <View style={styles.row}>
       <Text style={[styles.rowLabel, dimLabel && styles.rowLabelDim]}>
@@ -59,7 +58,7 @@ function DashedDivider() {
   return <View style={styles.dashedDivider} />;
 }
 
-export default function ReviewInvoiceScreen({navigation, route}: any) {
+export default function ReviewInvoiceScreen({ navigation, route }: any) {
   const {
     patient,
     billing,
@@ -69,16 +68,16 @@ export default function ReviewInvoiceScreen({navigation, route}: any) {
     paymentReceiveDate,
     existingInvoiceId,
   } = route.params || {
-    note: '',
-    therapist: '',
-    paymentReceiveDate: '',
-    patient: {name: '', reg: ''},
+    note: "",
+    therapist: "",
+    paymentReceiveDate: "",
+    patient: { name: "", reg: "" },
     billing: {
-      invoiceNo: '',
-      date: '',
-      due: '',
-      type: '',
-      service: '',
+      invoiceNo: "",
+      date: "",
+      due: "",
+      type: "",
+      service: "",
       items: [],
     },
     amount: {
@@ -89,7 +88,7 @@ export default function ReviewInvoiceScreen({navigation, route}: any) {
       totalPaid: 0,
       extraPaid: 0,
       balanceDue: 0,
-      status: 'Pending',
+      status: "Pending",
       previousPaid: 0,
       previousPaymentCount: 0,
     },
@@ -97,7 +96,7 @@ export default function ReviewInvoiceScreen({navigation, route}: any) {
   const [clinicSettings, setClinicSettings] = useState<any>(null);
   const [alreadyGenerated, setAlreadyGenerated] = useState(false);
   const [generating, setGenerating] = useState(false);
-  const {config, visible, showAlert, hideAlert} = useReusableAlert();
+  const { config, visible, showAlert, hideAlert } = useReusableAlert();
 
   useEffect(() => {
     (async () => {
@@ -122,115 +121,115 @@ export default function ReviewInvoiceScreen({navigation, route}: any) {
   const handleGenerate = async () => {
     if (generating) return;
     setGenerating(true);
-    console.log('[PreviewInvoice] handleGenerate called', {
+    console.log("[PreviewInvoice] handleGenerate called", {
       invoiceNo: billing.invoiceNo,
       existingInvoiceId,
     });
     try {
-      const fmt = (n: number) => '\u20B9' + Number(n).toLocaleString('en-IN');
+      const fmt = (n: number) => "\u20B9" + Number(n).toLocaleString("en-IN");
       const badgeStyle = (status: string) => {
         const map: Record<string, string> = {
-          Paid: 'background:#E8F5EC;color:#27AE60',
-          'Advance Paid': 'background:#EBF5FB;color:#2980B9',
-          'Partial Paid': 'background:#F4ECF7;color:#8E44AD',
-          'Over Paid': 'background:#E8F8F5;color:#1ABC9C',
-          Due: 'background:#FEF0E6;color:#D35400',
+          Paid: "background:#E8F5EC;color:#27AE60",
+          "Advance Paid": "background:#EBF5FB;color:#2980B9",
+          "Partial Paid": "background:#F4ECF7;color:#8E44AD",
+          "Over Paid": "background:#E8F8F5;color:#1ABC9C",
+          Due: "background:#FEF0E6;color:#D35400",
         };
-        return map[status] || 'background:#E8F5EC;color:#27AE60';
+        return map[status] || "background:#E8F5EC;color:#27AE60";
       };
       const logoHtml = clinicSettings?.logoUri
         ? `<img src="${clinicSettings.logoUri}" style="width:52px;height:52px;border-radius:12px;object-fit:cover" />`
-        : '🌿';
+        : "🌿";
       const h = [
-        '<html><head><style>',
-        '@page{margin:0}',
-        '*{margin:0;padding:0;box-sizing:border-box}',
-        'body{font-family:Helvetica Neue,Helvetica,Arial,sans-serif;margin:0;padding:10px;color:#1A2E2B;background:#FFF}',
-        '.card{width:100%;margin:0;background:#FFF;border-radius:16px;overflow:hidden}',
-        '.clinic-hdr{background:#2E7D72;padding:16px;display:flex;gap:12px;align-items:flex-start}',
-        '.logo{width:52px;height:52px;border-radius:12px;background:#FFF;display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0}',
-        '.clinic-info{flex:1}',
-        '.clinic-name{font-size:22px;font-weight:800;color:#FFF;letter-spacing:-0.3px;margin:0}',
-        '.tagline{font-size:15px;color:rgba(255,255,255,0.8);font-style:italic;margin:2px 0 0}',
-        '.contact{font-size:14px;color:rgba(255,255,255,0.7);margin:5px 0 0;line-height:20px}',
-        '.label-row{background:#1F5C56;padding:10px 16px;display:flex;justify-content:space-between;align-items:center}',
-        '.label{font-size:14px;font-weight:800;color:#FFF;letter-spacing:1px}',
-        '.inv-no{font-size:15px;font-weight:700;color:rgba(255,255,255,0.85)}',
-        '.dates{padding:12px 16px;display:flex;justify-content:space-between;border-bottom:1px solid #E2EDEB}',
-        '.date-text{font-size:15px;color:#1A2E2B}',
-        '.patient-box{margin:12px;background:#F0F7F6;border-radius:10px;padding:12px}',
-        '.patient-name{font-size:19px;font-weight:800;color:#1A2E2B;margin:0}',
-        '.patient-id{font-size:15px;color:#7A9490;margin:3px 0 0}',
-        'table{width:100%;border-collapse:collapse;margin:0 12px;width:calc(100% - 24px)}',
-        'th{padding:8px 12px;text-align:left;font-size:14px;font-weight:700;color:#2E7D72;letter-spacing:0.5px;background:#E8F2F0;border-radius:8px}',
-        '.amt-cell{text-align:right}',
-        '.center{text-align:center}',
-        'td{padding:12px;font-size:16px;color:#1A2E2B;border-bottom:1px solid #E2EDEB}',
-        '.amount-box{margin:12px;border:1px solid #E2EDEB;border-radius:10px;padding:14px}',
-        '.amt-row{display:flex;justify-content:space-between;padding:5px 0}',
-        '.amt-label{font-size:16px;color:#7A9490}',
-        '.amt-val{font-size:16px;color:#1A2E2B}',
-        '.amt-bold{font-size:19px;font-weight:800;color:#1A2E2B}',
-        '.dashed{height:1px;border-top:1px dashed #C8DEDA;margin:8px 0}',
-        '.status-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0}',
-        '.badge{border-radius:20px;padding:4px 14px;font-size:15px;font-weight:700}',
-        '.note-section{margin:12px 16px;background:#F0F9F7;border-radius:10px;padding:12px}',
-        '.note-label{font-size:14px;font-weight:700;color:#1A7866;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px}',
-        '.note-text{font-size:16px;color:#1A2E2B;line-height:22px}',
-        '.insurance{margin:12px;background:#FEF8EC;border-radius:10px;padding:12px;display:flex;gap:8px}',
-        '.ins-bar{width:3px;border-radius:4px;background:#D4A82A;flex-shrink:0}',
-        '.ins-text{flex:1;font-size:15px;color:#7A5C10;line-height:22px;font-style:italic}',
-        '.footer{font-size:14px;color:#9AAFAC;text-align:center;padding:8px 12px 16px;line-height:20px}',
-        '</style></head><body>',
+        "<html><head><style>",
+        "@page{margin:0}",
+        "*{margin:0;padding:0;box-sizing:border-box}",
+        "body{font-family:Helvetica Neue,Helvetica,Arial,sans-serif;margin:0;padding:10px;color:#1A2E2B;background:#FFF}",
+        ".card{width:100%;margin:0;background:#FFF;border-radius:16px;overflow:hidden}",
+        ".clinic-hdr{background:#2E7D72;padding:16px;display:flex;gap:12px;align-items:flex-start}",
+        ".logo{width:52px;height:52px;border-radius:12px;background:#FFF;display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0}",
+        ".clinic-info{flex:1}",
+        ".clinic-name{font-size:22px;font-weight:800;color:#FFF;letter-spacing:-0.3px;margin:0}",
+        ".tagline{font-size:15px;color:rgba(255,255,255,0.8);font-style:italic;margin:2px 0 0}",
+        ".contact{font-size:14px;color:rgba(255,255,255,0.7);margin:5px 0 0;line-height:20px}",
+        ".label-row{background:#1F5C56;padding:10px 16px;display:flex;justify-content:space-between;align-items:center}",
+        ".label{font-size:14px;font-weight:800;color:#FFF;letter-spacing:1px}",
+        ".inv-no{font-size:15px;font-weight:700;color:rgba(255,255,255,0.85)}",
+        ".dates{padding:12px 16px;display:flex;justify-content:space-between;border-bottom:1px solid #E2EDEB}",
+        ".date-text{font-size:15px;color:#1A2E2B}",
+        ".patient-box{margin:12px;background:#F0F7F6;border-radius:10px;padding:12px}",
+        ".patient-name{font-size:19px;font-weight:800;color:#1A2E2B;margin:0}",
+        ".patient-id{font-size:15px;color:#7A9490;margin:3px 0 0}",
+        "table{width:100%;border-collapse:collapse;margin:0 12px;width:calc(100% - 24px)}",
+        "th{padding:8px 12px;text-align:left;font-size:14px;font-weight:700;color:#2E7D72;letter-spacing:0.5px;background:#E8F2F0;border-radius:8px}",
+        ".amt-cell{text-align:right}",
+        ".center{text-align:center}",
+        "td{padding:12px;font-size:16px;color:#1A2E2B;border-bottom:1px solid #E2EDEB}",
+        ".amount-box{margin:12px;border:1px solid #E2EDEB;border-radius:10px;padding:14px}",
+        ".amt-row{display:flex;justify-content:space-between;padding:5px 0}",
+        ".amt-label{font-size:16px;color:#7A9490}",
+        ".amt-val{font-size:16px;color:#1A2E2B}",
+        ".amt-bold{font-size:19px;font-weight:800;color:#1A2E2B}",
+        ".dashed{height:1px;border-top:1px dashed #C8DEDA;margin:8px 0}",
+        ".status-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0}",
+        ".badge{border-radius:20px;padding:4px 14px;font-size:15px;font-weight:700}",
+        ".note-section{margin:12px 16px;background:#F0F9F7;border-radius:10px;padding:12px}",
+        ".note-label{font-size:14px;font-weight:700;color:#1A7866;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px}",
+        ".note-text{font-size:16px;color:#1A2E2B;line-height:22px}",
+        ".insurance{margin:12px;background:#FEF8EC;border-radius:10px;padding:12px;display:flex;gap:8px}",
+        ".ins-bar{width:3px;border-radius:4px;background:#D4A82A;flex-shrink:0}",
+        ".ins-text{flex:1;font-size:15px;color:#7A5C10;line-height:22px;font-style:italic}",
+        ".footer{font-size:14px;color:#9AAFAC;text-align:center;padding:8px 12px 16px;line-height:20px}",
+        "</style></head><body>",
         '<div class="card">',
 
         // Clinic header
         '<div class="clinic-hdr">',
-        '<div class="logo">' + logoHtml + '</div>',
+        '<div class="logo">' + logoHtml + "</div>",
         '<div class="clinic-info">',
         '<p class="clinic-name">' +
-          (clinicSettings?.clinicName || 'VedaMotion Care') +
-          '</p>',
+          (clinicSettings?.clinicName || "VedaMotion Care") +
+          "</p>",
         '<p class="tagline">' +
-          (clinicSettings?.tagline || 'Where Every Move Heals') +
-          '</p>',
+          (clinicSettings?.tagline || "Where Every Move Heals") +
+          "</p>",
         '<p class="contact">' +
-          (clinicSettings?.phone || '+91 8875115254') +
-          ' · ' +
-          (clinicSettings?.email || 'vedamotioncare@gmail.com') +
-          ' ·<br>' +
-          (clinicSettings?.website || 'www.vedamotioncare.in') +
-          '</p>',
-        '</div></div>',
+          (clinicSettings?.phone || "+91 8875115254") +
+          " · " +
+          (clinicSettings?.email || "vedamotioncare@gmail.com") +
+          " ·<br>" +
+          (clinicSettings?.website || "www.vedamotioncare.in") +
+          "</p>",
+        "</div></div>",
 
         // E-Bill label row
         '<div class="label-row">',
         '<span class="label">E-BILL / INVOICE</span>',
-        '<span class="inv-no">' + billing.invoiceNo + '</span></div>',
+        '<span class="inv-no">' + billing.invoiceNo + "</span></div>",
 
         // Dates
         '<div class="dates">',
-        '<span class="date-text">Invoice Date: ' + billing.date + '</span>',
-        '<span class="date-text">Due Date: ' + billing.due + '</span></div>',
+        '<span class="date-text">Invoice Date: ' + billing.date + "</span>",
+        '<span class="date-text">Due Date: ' + billing.due + "</span></div>",
         // paymentReceiveDate && amount.status !== "Due"
         //   ? '<div class="dates" style="border-bottom:1px solid #E2EDEB;padding-top:2px"><span class="date-text">Payment Receive Date: ' + paymentReceiveDate + "</span></div>"
         //   : "",
 
         // Patient
         '<div class="patient-box">',
-        '<p class="patient-name">' + patient.name + '</p>',
-        '<p class="patient-id">Patient ID: ' + patient.reg + '</p>',
+        '<p class="patient-name">' + patient.name + "</p>",
+        '<p class="patient-id">Patient ID: ' + patient.reg + "</p>",
         '<p class="patient-id" style="margin-top:3px">Treating Physiotherapist: ' +
-          (therapist || 'Dr. Yash Pratihasta, PT') +
-          '</p></div>',
+          (therapist || "Dr. Yash Pratihasta, PT") +
+          "</p></div>",
 
         // Service items table
-        '<table><tr>',
+        "<table><tr>",
         '<th style="width:46%">DESCRIPTION</th>',
         '<th class="center" style="width:15%">QTY</th>',
         '<th class="center" style="width:15%">UNIT</th>',
         '<th class="amt-cell" style="width:24%">AMOUNT</th>',
-        '</tr>' +
+        "</tr>" +
           (billing.items && billing.items.length > 0
             ? billing.items
                 .map(
@@ -238,40 +237,40 @@ export default function ReviewInvoiceScreen({navigation, route}: any) {
                     `<tr><td style="width:46%">${
                       it.name
                     }</td><td class="center" style="width:15%;color:#7A9490">${
-                      it.qty || ''
+                      it.qty || ""
                     }</td><td class="center" style="width:15%;color:#7A9490">${
-                      it.unit || ''
+                      it.unit || ""
                     }</td><td class="amt-cell" style="width:24%">${fmt(
                       it.amount,
                     )}</td></tr>`,
                 )
-                .join('')
+                .join("")
             : `<tr><td style="width:46%">${
                 billing.service
               }</td><td class="center" style="width:15%;color:#7A9490"></td><td class="center" style="width:15%;color:#7A9490"></td><td class="amt-cell" style="width:24%">${fmt(
                 amount.total,
               )}</td></tr>`) +
-          '</table>',
+          "</table>",
 
         // Amount breakdown
         '<div class="amount-box">',
         '<div class="amt-row"><span class="amt-label">Total Amount</span><span class="amt-val">' +
           fmt(amount.total) +
-          '</span></div>',
+          "</span></div>",
         amount.discount > 0
           ? '<div class="amt-row"><span class="amt-label">Discount</span><span class="amt-val">– ' +
             fmt(amount.discount) +
-            '</span></div>'
-          : '',
+            "</span></div>"
+          : "",
         '<div class="dashed"></div>',
         '<div class="amt-row"><span class="amt-bold">Payable Amount</span><span class="amt-bold">' +
           fmt(amount.payable) +
-          '</span></div>',
-        ...(amount.status === 'Partial Paid' && amount.payments.length > 0
+          "</span></div>",
+        ...(amount.status === "Partial Paid" && amount.payments.length > 0
           ? [
               ...amount.payments.map((p: any, i: number) => {
                 const isPrevious = i < (amount.previousPaymentCount || 0);
-                const dateStr = p.date ? ' (' + p.date + ')' : '';
+                const dateStr = p.date ? " (" + p.date + ")" : "";
                 const label = isPrevious
                   ? `Payment ${i + 1} — ${p.method}${dateStr}`
                   : `Current Payment — ${p.method}${dateStr}`;
@@ -280,73 +279,73 @@ export default function ReviewInvoiceScreen({navigation, route}: any) {
                   label +
                   '</span><span class="amt-val">' +
                   fmt(p.amount) +
-                  '</span></div>'
+                  "</span></div>"
                 );
               }),
               '<div class="dashed"></div>',
               '<div class="amt-row"><span class="amt-label">Total Paid</span><span class="amt-val">' +
                 fmt(amount.totalPaid) +
-                '</span></div>',
+                "</span></div>",
               '<div class="amt-row"><span class="amt-label">Balance Due</span><span class="amt-val">' +
                 fmt(amount.payable) +
-                ' − ' +
+                " − " +
                 fmt(amount.totalPaid) +
-                ' = ' +
+                " = " +
                 fmt(amount.balanceDue) +
-                '</span></div>',
+                "</span></div>",
             ]
           : [
               ...amount.payments.map(
                 (p: any, i: number) =>
                   '<div class="amt-row"><span class="amt-label">Payment ' +
                   (i + 1) +
-                  ' — ' +
+                  " — " +
                   p.method +
-                  (p.date ? ' (' + p.date + ')' : '') +
+                  (p.date ? " (" + p.date + ")" : "") +
                   '</span><span class="amt-val">' +
                   fmt(p.amount) +
-                  '</span></div>',
+                  "</span></div>",
               ),
               '<div class="amt-row"><span class="amt-label">Balance Due</span><span class="amt-val">' +
                 fmt(amount.balanceDue) +
-                '</span></div>',
+                "</span></div>",
             ]),
         '<div class="status-row"><span class="amt-label">Payment Status</span><span class="badge" style="' +
           badgeStyle(amount.status) +
           '">' +
           amount.status +
-          '</span></div>',
-        '</div>',
+          "</span></div>",
+        "</div>",
 
         // Note / Remarks
         note
           ? '<div class="note-section"><div class="note-label">Note / Remarks</div><div class="note-text">' +
             note +
-            '</div></div>'
-          : '',
+            "</div></div>"
+          : "",
         // Insurance clause
         '<div class="insurance">',
         '<div class="ins-bar"></div>',
         '<div class="ins-text">This is a valid e-bill generated by VedaMotion Care. To verify its authenticity, please email vedamotioncare@gmail.com quoting the invoice number. A confirmation will be sent after the bill is verified against our records.</div>',
-        '</div>',
+        "</div>",
 
         // Footer
         '<div class="footer">' +
-          (clinicSettings?.clinicName || 'VedaMotion Care') +
-          ' · Service & Payment Policy applies · ' +
-          (clinicSettings?.tagline || 'Where Every Move Heals') +
-          '</div>',
+          (clinicSettings?.clinicName || "VedaMotion Care") +
+          " · Service & Payment Policy applies · " +
+          (clinicSettings?.tagline || "Where Every Move Heals") +
+          "</div>",
 
-        '</div></body></html>',
-      ].join('');
+        "</div></body></html>",
+      ].join("");
 
       const now = new Date();
-      const dd = String(now.getDate()).padStart(2, '0');
-      const mm = String(now.getMonth() + 1).padStart(2, '0');
-      const hh = String(now.getHours()).padStart(2, '0');
-      const min = String(now.getMinutes()).padStart(2, '0');
-      const ss = String(now.getSeconds()).padStart(2, '0');
-      console.log('[PreviewInvoice] Calling RNHTMLtoPDF.convert...');
+      const dd = String(now.getDate()).padStart(2, "0");
+      const mm = String(now.getMonth() + 1).padStart(2, "0");
+      const hh = String(now.getHours()).padStart(2, "0");
+      const min = String(now.getMinutes()).padStart(2, "0");
+      const ss = String(now.getSeconds()).padStart(2, "0");
+      console.log("[PreviewInvoice] Calling RNHTMLtoPDF.convert...");
       const pdf = await RNHTMLtoPDF.convert({
         html: h,
         width: 595,
@@ -354,21 +353,21 @@ export default function ReviewInvoiceScreen({navigation, route}: any) {
         margin: 0,
         fileName: `Invoice_${billing.invoiceNo.replace(
           /\//g,
-          '-',
+          "-",
         )}_${dd}${mm}_${hh}${min}${ss}`,
       });
-      console.log('[PreviewInvoice] PDF result:', pdf);
+      console.log("[PreviewInvoice] PDF result:", pdf);
 
       if (!pdf.filePath) {
-        console.log('[PreviewInvoice] PDF generation failed - no filePath');
-        Alert.alert('Error', 'Failed to generate PDF. Please try again.');
+        console.log("[PreviewInvoice] PDF generation failed - no filePath");
+        Alert.alert("Error", "Failed to generate PDF. Please try again.");
         return;
       }
 
       try {
         const filePath = `${RNFS.DocumentDirectoryPath}/invoices_history.json`;
         const exists = await RNFS.exists(filePath);
-        const raw = exists ? await RNFS.readFile(filePath, 'utf8') : '[]';
+        const raw = exists ? await RNFS.readFile(filePath, "utf8") : "[]";
         const list = JSON.parse(raw);
         list.unshift({
           invoiceNo: billing.invoiceNo,
@@ -378,7 +377,7 @@ export default function ReviewInvoiceScreen({navigation, route}: any) {
           status: amount.status,
           savedAt: new Date().toISOString(),
         });
-        await RNFS.writeFile(filePath, JSON.stringify(list), 'utf8');
+        await RNFS.writeFile(filePath, JSON.stringify(list), "utf8");
       } catch {
         // silent
       }
@@ -394,7 +393,7 @@ export default function ReviewInvoiceScreen({navigation, route}: any) {
             invoiceNo: billing.invoiceNo,
             invoiceDate: billing.date,
             dueDate: billing.due,
-            therapist: therapist || '',
+            therapist: therapist || "",
             patientReg: patient.reg,
             patientName: patient.name,
             billingType: billing.type,
@@ -402,32 +401,32 @@ export default function ReviewInvoiceScreen({navigation, route}: any) {
               name: it.name,
               unitPrice: it.unitPrice || it.amount || 0,
               qty: it.qty || 1,
-              unit: it.unit || '',
+              unit: it.unit || "",
             })),
             total: amount.total,
             discount: amount.discount,
             payable: amount.payable,
             payments: amount.payments.map((p: any) => ({
               amount: p.amount || 0,
-              method: p.method || 'Cash',
-              date: p.date || '',
+              method: p.method || "Cash",
+              date: p.date || "",
             })),
             totalPaid: amount.totalPaid,
             extraPaid: amount.extraPaid,
             balanceDue: amount.balanceDue,
             status: amount.status,
-            note: note || '',
-            paymentReceiveDate: paymentReceiveDate || '',
+            note: note || "",
+            paymentReceiveDate: paymentReceiveDate || "",
             pdfPath: pdf.filePath,
             createdAt: nowIso,
             updatedAt: nowIso,
           });
           console.log(
-            '[PreviewInvoice] Invoice inserted with id:',
+            "[PreviewInvoice] Invoice inserted with id:",
             dbInvoiceId,
           );
         } catch (insertErr: any) {
-          console.log('[PreviewInvoice] insertInvoice error:', insertErr);
+          console.log("[PreviewInvoice] insertInvoice error:", insertErr);
         }
       } else {
         try {
@@ -436,8 +435,8 @@ export default function ReviewInvoiceScreen({navigation, route}: any) {
               dbInvoiceId,
               amount.payments.map((p: any) => ({
                 amount: p.amount || 0,
-                method: p.method || 'Cash',
-                date: p.date || '',
+                method: p.method || "Cash",
+                date: p.date || "",
               })),
               amount.totalPaid,
               amount.extraPaid,
@@ -447,15 +446,15 @@ export default function ReviewInvoiceScreen({navigation, route}: any) {
           }
           await updateInvoicePdfPath(dbInvoiceId, pdf.filePath);
           console.log(
-            '[PreviewInvoice] Invoice updated for existing id:',
+            "[PreviewInvoice] Invoice updated for existing id:",
             dbInvoiceId,
           );
         } catch (dbErr: any) {
-          console.log('[PreviewInvoice] DB update error:', dbErr);
+          console.log("[PreviewInvoice] DB update error:", dbErr);
         }
       }
 
-      navigation.navigate('EBillGenerated', {
+      navigation.navigate("EBillGenerated", {
         pdfPath: pdf.filePath,
         patient,
         billing,
@@ -465,10 +464,10 @@ export default function ReviewInvoiceScreen({navigation, route}: any) {
         paymentReceiveDate,
       });
     } catch (error: any) {
-      console.log('[PreviewInvoice] handleGenerate error:', error);
+      console.log("[PreviewInvoice] handleGenerate error:", error);
       Alert.alert(
-        'Error',
-        error?.message || 'Something went wrong while generating PDF.',
+        "Error",
+        error?.message || "Something went wrong while generating PDF.",
       );
     } finally {
       setGenerating(false);
@@ -476,33 +475,23 @@ export default function ReviewInvoiceScreen({navigation, route}: any) {
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.teal} />
-
-      {/* Header */}
-      <View style={styles.header}>
-        {!alreadyGenerated && (
-          <TouchableOpacity
-            style={styles.backBtn}
-            activeOpacity={0.8}
-            onPress={() => navigation.goBack()}>
-            <Text style={styles.backArrow}>←</Text>
-          </TouchableOpacity>
-        )}
-        <View>
-          <Text style={styles.headerTitle}>Review Invoice</Text>
-          <Text style={styles.headerSub}>
-            {alreadyGenerated
-              ? 'Invoice already generated'
-              : 'Before generating PDF'}
-          </Text>
-        </View>
-      </View>
-
+    <ScreenWrapper
+      title="Review Invoice"
+      subtitle={
+        alreadyGenerated ? "Invoice already generated" : "Before generating PDF"
+      }
+      headerLeft={
+        !alreadyGenerated ? (
+          <BackButton onPress={() => navigation.goBack()} />
+        ) : undefined
+      }
+      scrollable={false}
+    >
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.container}
-        showsVerticalScrollIndicator={false}>
+        showsVerticalScrollIndicator={false}
+      >
         {/* Info banner */}
         <View style={styles.banner}>
           <View style={styles.bannerBar} />
@@ -531,28 +520,28 @@ export default function ReviewInvoiceScreen({navigation, route}: any) {
           <Row label="Invoice No." value={billing.invoiceNo} dimLabel />
           <Row label="Invoice Date" value={billing.date} dimLabel />
           <Row label="Due Date" value={billing.due} dimLabel />
-          {paymentReceiveDate && amount.status !== 'Due' ? (
+          {/* {paymentReceiveDate && amount.status !== 'Due' ? (
             <Row
               label="Payment Receive Date"
               value={paymentReceiveDate}
               dimLabel
             />
-          ) : null}
+          ) : null} */}
           <Row label="Billing Type" value={billing.type} dimLabel />
           <View style={styles.spacer} />
           <Text style={styles.sectionSubLabel}>SERVICES</Text>
           {(billing.items && billing.items.length > 0
             ? billing.items
-            : [{name: billing.service, amount: amount.total}]
+            : [{ name: billing.service, amount: amount.total }]
           ).map((it: any, idx: number) => (
             <Row
               key={idx}
               label={`${it.name}${
                 it.qty && it.qty > 0
-                  ? ` × ${it.qty}${it.unit ? ` ${it.unit}` : ''}`
-                  : ''
+                  ? ` × ${it.qty}${it.unit ? ` ${it.unit}` : ""}`
+                  : ""
               }`}
-              value={`₹${(it.amount || 0).toLocaleString('en-IN')}`}
+              value={`₹${(it.amount || 0).toLocaleString("en-IN")}`}
               dimLabel
             />
           ))}
@@ -562,13 +551,13 @@ export default function ReviewInvoiceScreen({navigation, route}: any) {
         <SectionCard title="Amount">
           <Row
             label="Total Amount"
-            value={`₹${amount.total.toLocaleString('en-IN')}`}
+            value={`₹${amount.total.toLocaleString("en-IN")}`}
             dimLabel
           />
           {amount.discount > 0 && (
             <Row
               label="Discount"
-              value={`– ₹${amount.discount.toLocaleString('en-IN')}`}
+              value={`– ₹${amount.discount.toLocaleString("en-IN")}`}
               dimLabel
             />
           )}
@@ -577,17 +566,17 @@ export default function ReviewInvoiceScreen({navigation, route}: any) {
 
           <Row
             label="Payable Amount"
-            value={`₹${amount.payable.toLocaleString('en-IN')}`}
+            value={`₹${amount.payable.toLocaleString("en-IN")}`}
             bold
           />
 
           <View style={styles.spacer} />
 
-          {amount.status === 'Partial Paid' && amount.payments.length > 0 && (
+          {amount.status === "Partial Paid" && amount.payments.length > 0 && (
             <>
               {amount.payments.map((p: any, i: any) => {
                 const isPrevious = i < (amount.previousPaymentCount || 0);
-                const dateStr = p.date ? ` (${p.date})` : '';
+                const dateStr = p.date ? ` (${p.date})` : "";
                 return (
                   <Row
                     key={i}
@@ -596,7 +585,7 @@ export default function ReviewInvoiceScreen({navigation, route}: any) {
                         ? `Payment ${i + 1} — ${p.method}${dateStr}`
                         : `Current Payment — ${p.method}${dateStr}`
                     }
-                    value={`₹${p.amount.toLocaleString('en-IN')}`}
+                    value={`₹${p.amount.toLocaleString("en-IN")}`}
                     dimLabel
                   />
                 );
@@ -604,45 +593,45 @@ export default function ReviewInvoiceScreen({navigation, route}: any) {
               <DashedDivider />
               <Row
                 label="Total Paid"
-                value={`₹${amount.totalPaid.toLocaleString('en-IN')}`}
+                value={`₹${amount.totalPaid.toLocaleString("en-IN")}`}
                 dimLabel
               />
               <Row
                 label="Balance Due"
                 value={`₹${amount.payable.toLocaleString(
-                  'en-IN',
+                  "en-IN",
                 )} − ₹${amount.totalPaid.toLocaleString(
-                  'en-IN',
-                )} = ₹${amount.balanceDue.toLocaleString('en-IN')}`}
+                  "en-IN",
+                )} = ₹${amount.balanceDue.toLocaleString("en-IN")}`}
                 dimLabel
               />
             </>
           )}
 
-          {amount.status !== 'Partial Paid' && (
+          {amount.status !== "Partial Paid" && (
             <>
               {amount.payments.map((p: any, i: any) => (
                 <Row
                   key={i}
                   label={`Payment ${i + 1} — ${p.method}${
-                    p.date ? ` (${p.date})` : ''
+                    p.date ? ` (${p.date})` : ""
                   }`}
-                  value={`₹${p.amount.toLocaleString('en-IN')}`}
+                  value={`₹${p.amount.toLocaleString("en-IN")}`}
                   dimLabel
                 />
               ))}
               <Row
                 label="Balance Due"
-                value={`₹${amount.balanceDue.toLocaleString('en-IN')}`}
+                value={`₹${amount.balanceDue.toLocaleString("en-IN")}`}
                 dimLabel
               />
             </>
           )}
 
-          {amount.status === 'Due' && (
+          {amount.status === "Due" && (
             <Row
               label="Balance Due"
-              value={`₹${amount.balanceDue.toLocaleString('en-IN')}`}
+              value={`₹${amount.balanceDue.toLocaleString("en-IN")}`}
               dimLabel
             />
           )}
@@ -652,31 +641,33 @@ export default function ReviewInvoiceScreen({navigation, route}: any) {
             <View
               style={[
                 styles.statusBadge,
-                amount.status === 'Over Paid' && {
+                amount.status === "Over Paid" && {
                   backgroundColor: COLORS.cyanLight,
                 },
-                amount.status === 'Advance Paid' && {
+                amount.status === "Advance Paid" && {
                   backgroundColor: COLORS.skyBlueLight,
                 },
-                amount.status === 'Partial Paid' && {
+                amount.status === "Partial Paid" && {
                   backgroundColor: COLORS.violetLight,
                 },
-                amount.status === 'Paid' && {
+                amount.status === "Paid" && {
                   backgroundColor: COLORS.greenLight,
                 },
-                amount.status === 'Due' && {
+                amount.status === "Due" && {
                   backgroundColor: COLORS.orangeLight,
                 },
-              ]}>
+              ]}
+            >
               <Text
                 style={[
                   styles.statusBadgeText,
-                  amount.status === 'Over Paid' && {color: COLORS.cyan},
-                  amount.status === 'Advance Paid' && {color: COLORS.skyBlue},
-                  amount.status === 'Partial Paid' && {color: COLORS.violet},
-                  amount.status === 'Paid' && {color: COLORS.green},
-                  amount.status === 'Due' && {color: COLORS.orange},
-                ]}>
+                  amount.status === "Over Paid" && { color: COLORS.cyan },
+                  amount.status === "Advance Paid" && { color: COLORS.skyBlue },
+                  amount.status === "Partial Paid" && { color: COLORS.violet },
+                  amount.status === "Paid" && { color: COLORS.green },
+                  amount.status === "Due" && { color: COLORS.orange },
+                ]}
+              >
                 {amount.status}
               </Text>
             </View>
@@ -695,7 +686,8 @@ export default function ReviewInvoiceScreen({navigation, route}: any) {
         <TouchableOpacity
           style={styles.editInvoiceBtn}
           activeOpacity={0.8}
-          onPress={handleEdit}>
+          onPress={handleEdit}
+        >
           <Text style={styles.editInvoiceBtnText}>Edit Invoice</Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -703,17 +695,18 @@ export default function ReviewInvoiceScreen({navigation, route}: any) {
           activeOpacity={0.85}
           onPress={() => {
             showAlert({
-              title: 'Generate PDF',
+              title: "Generate PDF",
               message:
-                'Are you sure you want to generate the PDF for this invoice?',
-              icon: '📄',
+                "Are you sure you want to generate the PDF for this invoice?",
+              icon: "📄",
               buttons: [
-                {text: 'Cancel', style: 'cancel'},
-                {text: 'Generate', onPress: handleGenerate},
+                { text: "Cancel", style: "cancel" },
+                { text: "Generate", onPress: handleGenerate },
               ],
             });
           }}
-          disabled={generating}>
+          disabled={generating}
+        >
           {generating ? (
             <ActivityIndicator color="#FFF" size="small" />
           ) : (
@@ -729,49 +722,19 @@ export default function ReviewInvoiceScreen({navigation, route}: any) {
 
       <ReusableAlert
         visible={visible}
-        title={config?.title || ''}
+        title={config?.title || ""}
         message={config?.message}
         icon={config?.icon}
         buttons={config?.buttons || []}
         onDismiss={hideAlert}
       />
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: {flex: 1, backgroundColor: COLORS.teal},
-
-  // Header
-  header: {
-    backgroundColor: COLORS.teal,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 20,
-    gap: 12,
-  },
-  backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-  backArrow: {fontSize: 18, color: '#FFF', lineHeight: 22},
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: COLORS.headerText,
-    letterSpacing: -0.4,
-  },
-  headerSub: {fontSize: 13, color: COLORS.headerSub, marginTop: 2},
-
   // Scroll
-  scroll: {flex: 1, backgroundColor: COLORS.bg},
+  scroll: { flex: 1, backgroundColor: COLORS.bg },
   container: {
     paddingHorizontal: 16,
     paddingTop: 18,
@@ -784,7 +747,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.amberBg,
     borderRadius: 14,
     padding: 14,
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 10,
   },
   bannerBar: {
@@ -807,57 +770,57 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 14,
     paddingBottom: 16,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOpacity: 0.04,
     shadowRadius: 6,
-    shadowOffset: {width: 0, height: 2},
+    shadowOffset: { width: 0, height: 2 },
     elevation: 2,
     gap: 10,
   },
   cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 2,
   },
   cardTitle: {
     fontSize: 17,
-    fontWeight: '800',
+    fontWeight: "800",
     color: COLORS.textPrimary,
     letterSpacing: -0.3,
   },
-  editBtn: {flexDirection: 'row', alignItems: 'center', gap: 4},
-  editIcon: {fontSize: 14},
-  editText: {fontSize: 13, fontWeight: '700', color: COLORS.teal},
+  editBtn: { flexDirection: "row", alignItems: "center", gap: 4 },
+  editIcon: { fontSize: 14 },
+  editText: { fontSize: 13, fontWeight: "700", color: COLORS.teal },
 
   // Patient
-  patientName: {fontSize: 15, fontWeight: '700', color: COLORS.textPrimary},
-  patientReg: {fontSize: 13, color: COLORS.textSecondary},
+  patientName: { fontSize: 15, fontWeight: "700", color: COLORS.textPrimary },
+  patientReg: { fontSize: 13, color: COLORS.textSecondary },
 
   // Row
   row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
-  rowLabel: {fontSize: 14, color: COLORS.textPrimary, flex: 1},
-  rowLabelDim: {color: COLORS.textSecondary},
-  rowValue: {fontSize: 14, color: COLORS.textPrimary, textAlign: 'right'},
-  rowValueBold: {fontWeight: '800', fontSize: 16},
+  rowLabel: { fontSize: 14, color: COLORS.textPrimary, flex: 1 },
+  rowLabelDim: { color: COLORS.textSecondary },
+  rowValue: { fontSize: 14, color: COLORS.textPrimary, textAlign: "right" },
+  rowValueBold: { fontWeight: "800", fontSize: 16 },
 
   // Dashed divider
   dashedDivider: {
     height: 1,
-    borderStyle: 'dashed',
+    borderStyle: "dashed",
     borderWidth: 1,
     borderColor: COLORS.dashed,
     marginVertical: 2,
   },
 
-  spacer: {height: 4},
+  spacer: { height: 4 },
   sectionSubLabel: {
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: "700",
     color: COLORS.teal,
     letterSpacing: 0.8,
     marginBottom: 2,
@@ -865,19 +828,19 @@ const styles = StyleSheet.create({
 
   // Status
   statusRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginTop: 4,
   },
-  statusLabel: {fontSize: 14, color: COLORS.textSecondary},
+  statusLabel: { fontSize: 14, color: COLORS.textSecondary },
   statusBadge: {
     backgroundColor: COLORS.greenLight,
     borderRadius: 20,
     paddingHorizontal: 14,
     paddingVertical: 6,
   },
-  statusBadgeText: {fontSize: 12, fontWeight: '700', color: COLORS.teal},
+  statusBadgeText: { fontSize: 12, fontWeight: "700", color: COLORS.teal },
 
   // Note
   noteBtn: {
@@ -886,9 +849,9 @@ const styles = StyleSheet.create({
     borderColor: COLORS.teal,
     borderRadius: 12,
     paddingVertical: 13,
-    alignItems: 'center',
+    alignItems: "center",
   },
-  noteBtnText: {fontSize: 14, fontWeight: '700', color: COLORS.teal},
+  noteBtnText: { fontSize: 14, fontWeight: "700", color: COLORS.teal },
 
   // Bottom bar
   bottomBar: {
@@ -905,28 +868,28 @@ const styles = StyleSheet.create({
     borderColor: COLORS.teal,
     borderRadius: 14,
     paddingVertical: 14,
-    alignItems: 'center',
+    alignItems: "center",
   },
   editInvoiceBtnText: {
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: "700",
     color: COLORS.teal,
   },
   generateBtn: {
     backgroundColor: COLORS.teal,
     borderRadius: 16,
     paddingVertical: 17,
-    alignItems: 'center',
+    alignItems: "center",
     shadowColor: COLORS.teal,
     shadowOpacity: 0.3,
     shadowRadius: 10,
-    shadowOffset: {width: 0, height: 4},
+    shadowOffset: { width: 0, height: 4 },
     elevation: 5,
   },
   generateBtnText: {
     fontSize: 16,
-    fontWeight: '800',
-    color: '#FFF',
+    fontWeight: "800",
+    color: "#FFF",
     letterSpacing: 0.1,
   },
   generateBtnDisabled: {
@@ -935,7 +898,7 @@ const styles = StyleSheet.create({
   bottomNote: {
     fontSize: 12,
     color: COLORS.textSecondary,
-    textAlign: 'center',
+    textAlign: "center",
   },
   remarksText: {
     fontSize: 14,

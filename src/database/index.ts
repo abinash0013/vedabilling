@@ -10,6 +10,7 @@ import type {
   DashboardStats,
   ClinicSettings,
   PaymentReceipt,
+  PatientBillingHistory,
 } from '../types';
 
 SQLite.enablePromise(true);
@@ -17,7 +18,9 @@ SQLite.enablePromise(true);
 let db: SQLite.SQLiteDatabase | null = null;
 
 export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
-  if (db) return db;
+  if (db) {
+    return db;
+  }
   db = await SQLite.openDatabase({name: 'vedabilling.db', location: 'default'});
   await initTables(db);
   return db;
@@ -99,7 +102,7 @@ async function initTables(database: SQLite.SQLiteDatabase): Promise<void> {
   // Migration: add payment_receive_date column if missing
   try {
     await database.executeSql(
-      `ALTER TABLE invoices ADD COLUMN payment_receive_date TEXT DEFAULT ''`,
+      "ALTER TABLE invoices ADD COLUMN payment_receive_date TEXT DEFAULT ''",
     );
   } catch {
     // column already exists
@@ -108,7 +111,7 @@ async function initTables(database: SQLite.SQLiteDatabase): Promise<void> {
   // Migration: add date column to payments if missing
   try {
     await database.executeSql(
-      `ALTER TABLE payments ADD COLUMN date TEXT DEFAULT ''`,
+      "ALTER TABLE payments ADD COLUMN date TEXT DEFAULT ''",
     );
   } catch {
     // column already exists
@@ -125,12 +128,13 @@ export async function closeDatabase(): Promise<void> {
 export async function insertPatient(input: NewPatientInput): Promise<Patient> {
   const database = await getDatabase();
   const reg = input.reg || `VMCPTREG-${String(Date.now()).slice(-4)}`;
-  const id = (input.name || '')
-    .split(' ')
-    .map((w: string) => w[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 4) || 'XX';
+  const id =
+    (input.name || '')
+      .split(' ')
+      .map((w: string) => w[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 4) || 'XX';
   const now = new Date().toISOString();
   const patient: Patient = {
     id,
@@ -160,7 +164,15 @@ export async function insertPatient(input: NewPatientInput): Promise<Patient> {
   await database.executeSql(
     `INSERT INTO patients (id, reg, name, phone, address, created_at, updated_at)
      VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    [patient.id, patient.reg, patient.name, patient.phone, patient.address, patient.createdAt, patient.updatedAt],
+    [
+      patient.id,
+      patient.reg,
+      patient.name,
+      patient.phone,
+      patient.address,
+      patient.createdAt,
+      patient.updatedAt,
+    ],
   );
   return patient;
 }
@@ -199,7 +211,9 @@ export async function getPatientByReg(reg: string): Promise<Patient | null> {
     'SELECT * FROM patients WHERE reg = ?',
     [reg],
   );
-  if (results.rows.length === 0) return null;
+  if (results.rows.length === 0) {
+    return null;
+  }
   const row = results.rows.item(0);
   return {
     id: row.id,
@@ -214,7 +228,7 @@ export async function getPatientByReg(reg: string): Promise<Patient | null> {
 
 export async function updatePatient(
   reg: string,
-  data: { name: string; phone: string; address: string; reg?: string },
+  data: {name: string; phone: string; address: string; reg?: string},
 ): Promise<void> {
   const database = await getDatabase();
   const now = new Date().toISOString();
@@ -228,16 +242,16 @@ export async function updatePatient(
       throw new Error('Patient ID already exists.');
     }
     await database.executeSql(
-      `UPDATE invoices SET patient_reg = ? WHERE patient_reg = ?`,
+      'UPDATE invoices SET patient_reg = ? WHERE patient_reg = ?',
       [newReg, reg],
     );
     await database.executeSql(
-      `UPDATE patients SET reg = ?, name = ?, phone = ?, address = ?, updated_at = ? WHERE reg = ?`,
+      'UPDATE patients SET reg = ?, name = ?, phone = ?, address = ?, updated_at = ? WHERE reg = ?',
       [newReg, data.name, data.phone, data.address, now, reg],
     );
   } else {
     await database.executeSql(
-      `UPDATE patients SET name = ?, phone = ?, address = ?, updated_at = ? WHERE reg = ?`,
+      'UPDATE patients SET name = ?, phone = ?, address = ?, updated_at = ? WHERE reg = ?',
       [data.name, data.phone, data.address, now, reg],
     );
   }
@@ -290,7 +304,13 @@ export async function insertInvoice(invoice: Invoice): Promise<void> {
       await database.executeSql(
         `INSERT INTO invoice_items (invoice_id, name, unit_price, qty, unit)
          VALUES (?, ?, ?, ?, ?)`,
-        [invoice.id, item.name || '', item.unitPrice || 0, item.qty || 1, item.unit || ''],
+        [
+          invoice.id,
+          item.name || '',
+          item.unitPrice || 0,
+          item.qty || 1,
+          item.unit || '',
+        ],
       );
     }
   }
@@ -300,7 +320,12 @@ export async function insertInvoice(invoice: Invoice): Promise<void> {
       await database.executeSql(
         `INSERT INTO payments (invoice_id, amount, method, date)
          VALUES (?, ?, ?, ?)`,
-        [invoice.id, payment.amount || 0, payment.method || 'Cash', payment.date || ''],
+        [
+          invoice.id,
+          payment.amount || 0,
+          payment.method || 'Cash',
+          payment.date || '',
+        ],
       );
     }
   }
@@ -322,9 +347,13 @@ export async function getAllInvoices(): Promise<InvoiceSummary[]> {
     const paid = row.total_paid || 0;
     const payable = row.payable || 0;
     let displayStatus = row.status;
-    if (paid >= payable) displayStatus = 'Paid';
-    else if (paid > 0) displayStatus = 'Partial';
-    else displayStatus = 'Unpaid';
+    if (paid >= payable) {
+      displayStatus = 'Paid';
+    } else if (paid > 0) {
+      displayStatus = 'Partial';
+    } else {
+      displayStatus = 'Unpaid';
+    }
     let invoicePayments: {amount: number; method: string}[] = [];
     if (row.payment_count > 0) {
       const [payResults] = await database.executeSql(
@@ -333,7 +362,10 @@ export async function getAllInvoices(): Promise<InvoiceSummary[]> {
       );
       for (let j = 0; j < payResults.rows.length; j++) {
         const pr = payResults.rows.item(j);
-        invoicePayments.push({amount: pr.amount || 0, method: pr.method || 'Cash'});
+        invoicePayments.push({
+          amount: pr.amount || 0,
+          method: pr.method || 'Cash',
+        });
       }
     }
     items.push({
@@ -354,7 +386,9 @@ export async function getAllInvoices(): Promise<InvoiceSummary[]> {
   return items;
 }
 
-export async function getInvoicesByPatient(reg: string): Promise<InvoiceSummary[]> {
+export async function getInvoicesByPatient(
+  reg: string,
+): Promise<InvoiceSummary[]> {
   const database = await getDatabase();
   const [results] = await database.executeSql(
     `SELECT i.id, i.invoice_no, i.patient_name, i.patient_reg, i.billing_type, i.payable, i.total_paid, i.status, i.invoice_date,
@@ -372,9 +406,13 @@ export async function getInvoicesByPatient(reg: string): Promise<InvoiceSummary[
     const paid = row.total_paid || 0;
     const payable = row.payable || 0;
     let displayStatus = row.status;
-    if (paid >= payable) displayStatus = 'Paid';
-    else if (paid > 0) displayStatus = 'Partial';
-    else displayStatus = 'Unpaid';
+    if (paid >= payable) {
+      displayStatus = 'Paid';
+    } else if (paid > 0) {
+      displayStatus = 'Partial';
+    } else {
+      displayStatus = 'Unpaid';
+    }
     let invoicePayments: {amount: number; method: string}[] = [];
     if (row.payment_count > 0) {
       const [payResults] = await database.executeSql(
@@ -383,7 +421,10 @@ export async function getInvoicesByPatient(reg: string): Promise<InvoiceSummary[
       );
       for (let j = 0; j < payResults.rows.length; j++) {
         const pr = payResults.rows.item(j);
-        invoicePayments.push({amount: pr.amount || 0, method: pr.method || 'Cash'});
+        invoicePayments.push({
+          amount: pr.amount || 0,
+          method: pr.method || 'Cash',
+        });
       }
     }
     items.push({
@@ -410,7 +451,9 @@ export async function getFullInvoice(id: string): Promise<Invoice | null> {
     'SELECT * FROM invoices WHERE id = ?',
     [id],
   );
-  if (invResults.rows.length === 0) return null;
+  if (invResults.rows.length === 0) {
+    return null;
+  }
   const row = invResults.rows.item(0);
 
   const [itemResults] = await database.executeSql(
@@ -420,7 +463,12 @@ export async function getFullInvoice(id: string): Promise<Invoice | null> {
   const items: InvoiceItem[] = [];
   for (let i = 0; i < itemResults.rows.length; i++) {
     const ir = itemResults.rows.item(i);
-    items.push({name: ir.name, unitPrice: ir.unit_price, qty: ir.qty, unit: ir.unit || ''});
+    items.push({
+      name: ir.name,
+      unitPrice: ir.unit_price,
+      qty: ir.qty,
+      unit: ir.unit || '',
+    });
   }
 
   const [payResults] = await database.executeSql(
@@ -491,9 +539,13 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     const paid = row.total_paid || 0;
     const payable = row.payable || 0;
     totalRevenue += paid;
-    if (paid >= payable && payable > 0) paidInvoices++;
-    else if (paid > 0) partialInvoices++;
-    else unpaidInvoices++;
+    if (paid >= payable && payable > 0) {
+      paidInvoices++;
+    } else if (paid > 0) {
+      partialInvoices++;
+    } else {
+      unpaidInvoices++;
+    }
     pendingAmount += payable - paid;
   }
 
@@ -513,7 +565,9 @@ export async function getClinicSettings(): Promise<ClinicSettings | null> {
   const [results] = await database.executeSql(
     'SELECT * FROM clinic_settings WHERE id = 1',
   );
-  if (results.rows.length === 0) return null;
+  if (results.rows.length === 0) {
+    return null;
+  }
   const row = results.rows.item(0);
   return {
     clinicName: row.clinic_name || 'VedaMotion Care',
@@ -540,7 +594,7 @@ export async function getNextInvoiceNo(): Promise<string> {
   const prefix = `VMC/INV/${fy}-${fyEnd}/`;
 
   const [results] = await database.executeSql(
-    `SELECT invoice_no FROM invoices WHERE invoice_no LIKE ? ORDER BY invoice_no DESC LIMIT 1`,
+    'SELECT invoice_no FROM invoices WHERE invoice_no LIKE ? ORDER BY invoice_no DESC LIMIT 1',
     [`${prefix}%`],
   );
 
@@ -555,7 +609,9 @@ export async function getNextInvoiceNo(): Promise<string> {
   return `${prefix}${String(nextNum).padStart(4, '0')}`;
 }
 
-export async function saveClinicSettings(settings: ClinicSettings): Promise<void> {
+export async function saveClinicSettings(
+  settings: ClinicSettings,
+): Promise<void> {
   const database = await getDatabase();
   await database.executeSql(
     `INSERT OR REPLACE INTO clinic_settings
@@ -631,13 +687,19 @@ export async function exportAllData(): Promise<DatabaseBackup> {
 
   const [patients] = await database.executeSql('SELECT * FROM patients');
   const [invoices] = await database.executeSql('SELECT * FROM invoices');
-  const [invoiceItems] = await database.executeSql('SELECT * FROM invoice_items');
+  const [invoiceItems] = await database.executeSql(
+    'SELECT * FROM invoice_items',
+  );
   const [payments] = await database.executeSql('SELECT * FROM payments');
-  const [clinicSettings] = await database.executeSql('SELECT * FROM clinic_settings');
+  const [clinicSettings] = await database.executeSql(
+    'SELECT * FROM clinic_settings',
+  );
 
   const rowsToArr = (result: any) => {
     const arr = [];
-    for (let i = 0; i < result.rows.length; i++) arr.push(result.rows.item(i));
+    for (let i = 0; i < result.rows.length; i++) {
+      arr.push(result.rows.item(i));
+    }
     return arr;
   };
 
@@ -656,7 +718,9 @@ export async function exportAllData(): Promise<DatabaseBackup> {
   };
 }
 
-export async function importAllData(backup: DatabaseBackup): Promise<{patients: number; invoices: number; payments: number}> {
+export async function importAllData(
+  backup: DatabaseBackup,
+): Promise<{patients: number; invoices: number; payments: number}> {
   const database = await getDatabase();
 
   await database.executeSql('DELETE FROM payments');
@@ -670,7 +734,15 @@ export async function importAllData(backup: DatabaseBackup): Promise<{patients: 
     await database.executeSql(
       `INSERT OR REPLACE INTO patients (id, reg, name, phone, address, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [p.id, p.reg, p.name, p.phone || '', p.address || '', p.created_at, p.updated_at],
+      [
+        p.id,
+        p.reg,
+        p.name,
+        p.phone || '',
+        p.address || '',
+        p.created_at,
+        p.updated_at,
+      ],
     );
     patientCount++;
   }
@@ -684,11 +756,26 @@ export async function importAllData(backup: DatabaseBackup): Promise<{patients: 
          status, note, payment_receive_date, pdf_path, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        inv.id, inv.invoice_no, inv.invoice_date, inv.due_date, inv.therapist || '',
-        inv.patient_reg, inv.patient_name, inv.billing_type, inv.total || 0,
-        inv.discount || 0, inv.payable || 0, inv.total_paid || 0, inv.extra_paid || 0,
-        inv.balance_due || 0, inv.status || 'Due', inv.note || '',
-        inv.payment_receive_date || '', inv.pdf_path || '', inv.created_at, inv.updated_at,
+        inv.id,
+        inv.invoice_no,
+        inv.invoice_date,
+        inv.due_date,
+        inv.therapist || '',
+        inv.patient_reg,
+        inv.patient_name,
+        inv.billing_type,
+        inv.total || 0,
+        inv.discount || 0,
+        inv.payable || 0,
+        inv.total_paid || 0,
+        inv.extra_paid || 0,
+        inv.balance_due || 0,
+        inv.status || 'Due',
+        inv.note || '',
+        inv.payment_receive_date || '',
+        inv.pdf_path || '',
+        inv.created_at,
+        inv.updated_at,
       ],
     );
     invoiceCount++;
@@ -698,7 +785,14 @@ export async function importAllData(backup: DatabaseBackup): Promise<{patients: 
     await database.executeSql(
       `INSERT OR REPLACE INTO invoice_items (id, invoice_id, name, unit_price, qty, unit)
        VALUES (?, ?, ?, ?, ?, ?)`,
-      [item.id, item.invoice_id, item.name, item.unit_price || 0, item.qty || 1, item.unit || ''],
+      [
+        item.id,
+        item.invoice_id,
+        item.name,
+        item.unit_price || 0,
+        item.qty || 1,
+        item.unit || '',
+      ],
     );
   }
 
@@ -707,7 +801,13 @@ export async function importAllData(backup: DatabaseBackup): Promise<{patients: 
     await database.executeSql(
       `INSERT OR REPLACE INTO payments (id, invoice_id, amount, method, date)
        VALUES (?, ?, ?, ?, ?)`,
-      [pay.id, pay.invoice_id, pay.amount || 0, pay.method || 'Cash', pay.date || ''],
+      [
+        pay.id,
+        pay.invoice_id,
+        pay.amount || 0,
+        pay.method || 'Cash',
+        pay.date || '',
+      ],
     );
     paymentCount++;
   }
@@ -719,15 +819,26 @@ export async function importAllData(backup: DatabaseBackup): Promise<{patients: 
          patient_id_format, gst, logo_uri, insurance_clause)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        cs.id || 1, cs.clinic_name || '', cs.tagline || '', cs.phone || '',
-        cs.email || '', cs.website || '', cs.physiotherapist || '',
-        cs.patient_id_format || 'VMCPTREG-####', cs.gst || '',
-        cs.logo_uri || '', cs.insurance_clause || '',
+        cs.id || 1,
+        cs.clinic_name || '',
+        cs.tagline || '',
+        cs.phone || '',
+        cs.email || '',
+        cs.website || '',
+        cs.physiotherapist || '',
+        cs.patient_id_format || 'VMCPTREG-####',
+        cs.gst || '',
+        cs.logo_uri || '',
+        cs.insurance_clause || '',
       ],
     );
   }
 
-  return {patients: patientCount, invoices: invoiceCount, payments: paymentCount};
+  return {
+    patients: patientCount,
+    invoices: invoiceCount,
+    payments: paymentCount,
+  };
 }
 
 export async function updateInvoicePayment(
@@ -746,14 +857,259 @@ export async function updateInvoicePayment(
      WHERE id = ?`,
     [totalPaid, extraPaid, balanceDue, status, now, invoiceId],
   );
-  await database.executeSql(
-    `DELETE FROM payments WHERE invoice_id = ?`,
-    [invoiceId],
-  );
+  await database.executeSql('DELETE FROM payments WHERE invoice_id = ?', [
+    invoiceId,
+  ]);
   for (const payment of payments) {
     await database.executeSql(
-      `INSERT INTO payments (invoice_id, amount, method, date) VALUES (?, ?, ?, ?)`,
-      [invoiceId, payment.amount || 0, payment.method || 'Cash', payment.date || ''],
+      'INSERT INTO payments (invoice_id, amount, method, date) VALUES (?, ?, ?, ?)',
+      [
+        invoiceId,
+        payment.amount || 0,
+        payment.method || 'Cash',
+        payment.date || '',
+      ],
     );
   }
+}
+
+function parseDate(dateStr: string): Date | null {
+  if (!dateStr) {
+    return null;
+  }
+  const d = new Date(dateStr);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function daysBetween(a: Date, b: Date): number {
+  const msPerDay = 86400000;
+  return Math.round((b.getTime() - a.getTime()) / msPerDay);
+}
+
+function formatDisplayDate(dateStr: string): string {
+  const d = parseDate(dateStr);
+  if (!d) {
+    return '';
+  }
+  return d.toLocaleDateString('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
+function formatMoney(amount: number): string {
+  return `\u20b9${Math.round(amount).toLocaleString('en-IN')}`;
+}
+
+function paidAmount(inv: Invoice): number {
+  return inv.payments.reduce((sum, p) => sum + p.amount, 0);
+}
+
+function dueAmount(inv: Invoice): number {
+  return Math.max(0, inv.payable - paidAmount(inv));
+}
+
+function isSettled(inv: Invoice): boolean {
+  return inv.payable > 0 && paidAmount(inv) >= inv.payable;
+}
+
+function effectiveDueDate(inv: Invoice): Date | null {
+  return parseDate(inv.dueDate) || parseDate(inv.invoiceDate);
+}
+
+function getLastPayment(
+  inv: Invoice,
+): {date: Date; label: string; amount: number} | null {
+  let latestDate: Date | null = null;
+  let latestLabel = '';
+  let latestAmount = 0;
+
+  for (const pay of inv.payments) {
+    const date = parseDate(pay.date) || parseDate(inv.invoiceDate);
+    if (!date) {
+      continue;
+    }
+    if (!latestDate || date > latestDate) {
+      latestDate = date;
+      latestLabel = pay.date || inv.invoiceDate;
+      latestAmount = pay.amount;
+    }
+  }
+
+  if (!latestDate) {
+    return null;
+  }
+  return {date: latestDate, label: latestLabel, amount: latestAmount};
+}
+
+interface OutstandingSummary {
+  outstandingBalance: number;
+  overdueAmount: number;
+  daysOverdue: number;
+  creditBalance: number;
+  lastPaymentDate: string;
+  lastPaymentAmount: number;
+}
+
+function summarizeOutstanding(
+  invoices: Invoice[],
+  today: Date,
+): OutstandingSummary {
+  const summary: OutstandingSummary = {
+    outstandingBalance: 0,
+    overdueAmount: 0,
+    daysOverdue: 0,
+    creditBalance: 0,
+    lastPaymentDate: '',
+    lastPaymentAmount: 0,
+  };
+  let latestPaymentDate: Date | null = null;
+
+  for (const inv of invoices) {
+    if (!isSettled(inv)) {
+      const due = dueAmount(inv);
+      summary.outstandingBalance += due;
+
+      const dueDate = effectiveDueDate(inv);
+      if (dueDate && dueDate < today) {
+        summary.overdueAmount += due;
+        summary.daysOverdue = Math.max(
+          summary.daysOverdue,
+          daysBetween(dueDate, today),
+        );
+      }
+    }
+
+    if (inv.extraPaid > 0) {
+      summary.creditBalance += inv.extraPaid;
+    }
+
+    const lastPay = getLastPayment(inv);
+    if (lastPay && (!latestPaymentDate || lastPay.date > latestPaymentDate)) {
+      latestPaymentDate = lastPay.date;
+      summary.lastPaymentDate = lastPay.label;
+      summary.lastPaymentAmount = lastPay.amount;
+    }
+  }
+
+  return summary;
+}
+
+function buildPaymentHistory(
+  settled: Invoice[],
+  today: Date,
+): PatientBillingHistory['paymentHistory'] {
+  const recentSettled: PatientBillingHistory['paymentHistory']['recentSettled'] =
+    [];
+  let onTimePayableTotal = 0;
+  let totalSettledPayable = 0;
+  let onTimeCount = 0;
+  let lateCount = 0;
+
+  for (const inv of settled) {
+    const dueDate = effectiveDueDate(inv) || today;
+    const lastPay = getLastPayment(inv);
+    const settledOn = lastPay?.date || parseDate(inv.invoiceDate) || today;
+    const daysEarlyOrLate = daysBetween(settledOn, dueDate);
+
+    let amountOnTime = 0;
+    for (const pay of inv.payments) {
+      const paidOn = parseDate(pay.date) || parseDate(inv.invoiceDate);
+      if (paidOn && daysBetween(paidOn, dueDate) >= 0) {
+        amountOnTime += pay.amount;
+      }
+    }
+
+    const onTimePercent =
+      inv.payable > 0
+        ? Math.min(100, Math.round((amountOnTime / inv.payable) * 100))
+        : 100;
+
+    totalSettledPayable += inv.payable;
+    if (daysEarlyOrLate >= 0) {
+      onTimePayableTotal += inv.payable;
+      onTimeCount++;
+    } else {
+      lateCount++;
+    }
+
+    recentSettled.push({
+      invoiceNo: inv.invoiceNo,
+      amount: inv.payable,
+      totalPaid: paidAmount(inv),
+      onTimePercent,
+      daysEarlyOrLate,
+    });
+  }
+
+  return {
+    settledCount: settled.length,
+    onTimeCount,
+    lateCount,
+    onTimePercent:
+      totalSettledPayable > 0
+        ? Math.round((onTimePayableTotal / totalSettledPayable) * 100)
+        : 0,
+    recentSettled,
+  };
+}
+
+function getBillingRecommendation(status: OutstandingSummary): string {
+  if (status.overdueAmount > 0) {
+    return `${formatMoney(status.overdueAmount)} overdue ${
+      status.daysOverdue
+    } days. Billing follow-up recommended.`;
+  }
+  if (status.outstandingBalance > 0) {
+    return `${formatMoney(
+      status.outstandingBalance,
+    )} outstanding, not yet overdue. Payment due as per invoice terms.`;
+  }
+  if (status.creditBalance > 0) {
+    return `No outstanding balance. Credit balance of ${formatMoney(
+      status.creditBalance,
+    )} available.`;
+  }
+  return 'No outstanding balance. No follow-up needed.';
+}
+
+export async function getPatientBillingHistory(
+  patientReg: string,
+): Promise<PatientBillingHistory> {
+  const summaries = await getInvoicesByPatient(patientReg);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const invoices: Invoice[] = [];
+  for (const summary of summaries) {
+    const full = await getFullInvoice(summary.id);
+    if (full) {
+      invoices.push(full);
+    }
+  }
+
+  const settled = invoices.filter(isSettled);
+  const status = summarizeOutstanding(invoices, today);
+
+  return {
+    billingStatus: {
+      outstandingBalance: Math.round(status.outstandingBalance),
+      overdueAmount: Math.round(status.overdueAmount),
+      daysOverdue: status.daysOverdue,
+      lastPaymentDate: status.lastPaymentDate
+        ? formatDisplayDate(status.lastPaymentDate)
+        : '',
+      lastPaymentAmount: Math.round(status.lastPaymentAmount),
+      creditBalance: Math.round(status.creditBalance),
+    },
+    paymentHistory: buildPaymentHistory(settled, today),
+    billingContext: {
+      writeOffs: [],
+      creditBalance: Math.round(status.creditBalance),
+      paymentReversals: [],
+      activeDisputes: [],
+    },
+    billingRecommendation: getBillingRecommendation(status),
+  };
 }

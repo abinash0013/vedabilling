@@ -116,3 +116,36 @@ export interface ClinicSettings {
   logoUri: string;
   insuranceClause: string;
 }
+
+export interface SettledInvoiceRow {
+  invoiceNo: string;
+  amount: number;
+  totalPaid: number;
+  onTimePercent: number;
+  daysEarlyOrLate: number;
+}
+
+export interface PatientBillingHistory {
+  billingStatus: {
+    outstandingBalance: number;
+    overdueAmount: number;
+    daysOverdue: number;
+    lastPaymentDate: string;
+    lastPaymentAmount: number;
+    creditBalance: number;
+  };
+  paymentHistory: {
+    settledCount: number;
+    onTimeCount: number;
+    lateCount: number;
+    onTimePercent: number;
+    recentSettled: SettledInvoiceRow[];
+  };
+  billingContext: {
+    writeOffs: {amount: number; reason: string}[];
+    creditBalance: number;
+    paymentReversals: {amount: number; reason: string}[];
+    activeDisputes: {description: string}[];
+  };
+  billingRecommendation: string;
+}

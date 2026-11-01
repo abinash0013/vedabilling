@@ -7,12 +7,11 @@ import {
   TextInput,
   ScrollView,
   StyleSheet,
-  SafeAreaView,
   TouchableOpacity,
   PermissionsAndroid,
   KeyboardAvoidingView,
-} from 'react-native';
-import {useState, useCallback} from 'react';
+} from "react-native";
+import { useState, useCallback } from "react";
 import {
   Plus,
   X,
@@ -25,36 +24,37 @@ import {
   CheckCircle2,
   AlertCircle,
   XCircle,
-} from 'lucide-react-native';
-import {useNavigation, useFocusEffect} from '@react-navigation/native';
+} from "lucide-react-native";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
 
-import RNFS from 'react-native-fs';
-import Share from 'react-native-share';
-import * as XLSX from 'xlsx';
+import RNFS from "react-native-fs";
+import Share from "react-native-share";
+import * as XLSX from "xlsx";
 
-import {getAllInvoices, getAllPatients, insertPatient} from '../../database';
-import type {InvoiceSummary, PatientListItem} from '../../types';
+import { getAllInvoices, getAllPatients, insertPatient } from "../../database";
+import type { InvoiceSummary, PatientListItem } from "../../types";
 
-import BASE from './../../constants/colors';
+import BASE from "../../constants/colors";
+import ScreenWrapper from "../../components/ScreenWrapper";
 
 const COLORS = {
   ...BASE,
-  tealBorder: '#2E7D72',
-  plusBtn: 'rgba(255,255,255,0.25)',
-  stepNum: '#7A9490',
-  hint: '#7A9490',
+  tealBorder: "#2E7D72",
+  plusBtn: "rgba(255,255,255,0.25)",
+  stepNum: "#7A9490",
+  hint: "#7A9490",
 };
 
-const parseAmt = (s: string) => Number(s.replace(/[^0-9]/g, ''));
+const parseAmt = (s: string) => Number(s.replace(/[^0-9]/g, ""));
 
-const statusStyles: Record<string, {bg: string; text: string}> = {
-  Paid: {bg: COLORS.greenLight, text: COLORS.green},
-  Partial: {bg: COLORS.violetLight, text: COLORS.violet},
-  Unpaid: {bg: COLORS.redLight, text: COLORS.red},
-  'Over Paid': {bg: COLORS.cyanLight, text: COLORS.cyan},
-  'Advance Paid': {bg: COLORS.skyBlueLight, text: COLORS.skyBlue},
-  'Partial Paid': {bg: COLORS.violetLight, text: COLORS.violet},
-  Due: {bg: COLORS.orangeLight, text: COLORS.orange},
+const statusStyles: Record<string, { bg: string; text: string }> = {
+  Paid: { bg: COLORS.greenLight, text: COLORS.green },
+  Partial: { bg: COLORS.violetLight, text: COLORS.violet },
+  Unpaid: { bg: COLORS.redLight, text: COLORS.red },
+  "Over Paid": { bg: COLORS.cyanLight, text: COLORS.cyan },
+  "Advance Paid": { bg: COLORS.skyBlueLight, text: COLORS.skyBlue },
+  "Partial Paid": { bg: COLORS.violetLight, text: COLORS.violet },
+  Due: { bg: COLORS.orangeLight, text: COLORS.orange },
 };
 
 function StatCard({
@@ -74,17 +74,30 @@ function StatCard({
 }) {
   const pct = total > 0 ? Math.min((count / total) * 100, 100) : 0;
   return (
-    <View style={[styles.statCard, {backgroundColor: color}]}>
+    <View style={[styles.statCard, { backgroundColor: color }]}>
       {/* Decorative circles */}
-      <View style={[styles.decoCircle1, {backgroundColor: 'rgba(255,255,255,0.12)'}]} />
-      <View style={[styles.decoCircle2, {backgroundColor: 'rgba(255,255,255,0.08)'}]} />
-      <View style={[styles.decoCircle3, {backgroundColor: 'rgba(255,255,255,0.06)'}]} />
+      <View
+        style={[
+          styles.decoCircle1,
+          { backgroundColor: "rgba(255,255,255,0.12)" },
+        ]}
+      />
+      <View
+        style={[
+          styles.decoCircle2,
+          { backgroundColor: "rgba(255,255,255,0.08)" },
+        ]}
+      />
+      <View
+        style={[
+          styles.decoCircle3,
+          { backgroundColor: "rgba(255,255,255,0.06)" },
+        ]}
+      />
 
       {/* Icon */}
       <View style={styles.statIconRow}>
-        <View style={styles.statIconBg}>
-          {icon}
-        </View>
+        <View style={styles.statIconBg}>{icon}</View>
         <Text style={styles.statPct}>{Math.round(pct)}%</Text>
       </View>
 
@@ -97,7 +110,12 @@ function StatCard({
       {/* Bottom bar */}
       <View style={styles.statBottomRow}>
         <View style={styles.statBarBg}>
-          <View style={[styles.statBarFill2, {backgroundColor: '#FFFFFF', width: `${pct}%`}]} />
+          <View
+            style={[
+              styles.statBarFill2,
+              { backgroundColor: "#FFFFFF", width: `${pct}%` },
+            ]}
+          />
         </View>
         <Text style={styles.statAmountWhite}>{amount}</Text>
       </View>
@@ -105,12 +123,12 @@ function StatCard({
   );
 }
 
-function Avatar({name}: any) {
-  const parts = (name || '').trim().split(/\s+/);
+function Avatar({ name }: any) {
+  const parts = (name || "").trim().split(/\s+/);
   const initials =
     parts.length > 1
-      ? (parts[0][0] || '') + (parts[parts.length - 1][0] || '')
-      : parts[0]?.[0] || '?';
+      ? (parts[0][0] || "") + (parts[parts.length - 1][0] || "")
+      : parts[0]?.[0] || "?";
   return (
     <View style={styles.avatar}>
       <Text style={styles.avatarText}>{initials.toUpperCase()}</Text>
@@ -118,11 +136,11 @@ function Avatar({name}: any) {
   );
 }
 
-function StatusBadge({status}: {status: keyof typeof statusStyles}) {
+function StatusBadge({ status }: { status: keyof typeof statusStyles }) {
   const s = statusStyles[status] || statusStyles.Paid;
   return (
-    <View style={[styles.badge, {backgroundColor: s.bg}]}>
-      <Text style={[styles.badgeText, {color: s.text}]}>{status}</Text>
+    <View style={[styles.badge, { backgroundColor: s.bg }]}>
+      <Text style={[styles.badgeText, { color: s.text }]}>{status}</Text>
     </View>
   );
 }
@@ -131,19 +149,19 @@ const accentColors: Record<string, string> = {
   Paid: COLORS.green,
   Partial: COLORS.violet,
   Unpaid: COLORS.red,
-  'Over Paid': COLORS.cyan,
-  'Advance Paid': COLORS.skyBlue,
-  'Partial Paid': COLORS.violet,
+  "Over Paid": COLORS.cyan,
+  "Advance Paid": COLORS.skyBlue,
+  "Partial Paid": COLORS.violet,
   Due: COLORS.orange,
 };
 
-function InvoiceCard({item}: {item: InvoiceSummary}) {
-  const isPartial = item.status === 'Partial';
+function InvoiceCard({ item }: { item: InvoiceSummary }) {
+  const isPartial = item.status === "Partial";
   const hasPayments = (item.paymentCount ?? 0) > 0;
   const accent = accentColors[item.status] || COLORS.teal;
   return (
     <View style={styles.invoiceCard}>
-      <View style={[styles.invoiceAccent, {backgroundColor: accent}]} />
+      <View style={[styles.invoiceAccent, { backgroundColor: accent }]} />
       <View style={styles.invoiceBody}>
         <View style={styles.invoiceTop}>
           <Avatar name={item.name} />
@@ -158,10 +176,10 @@ function InvoiceCard({item}: {item: InvoiceSummary}) {
               <Text style={styles.partialPayments}>
                 {item.payments
                   .map(
-                    (p: {amount: number; method: string}, idx: number) =>
-                      `P${idx + 1}: ₹${p.amount.toLocaleString('en-IN')}`,
+                    (p: { amount: number; method: string }, idx: number) =>
+                      `P${idx + 1}: ₹${p.amount.toLocaleString("en-IN")}`,
                   )
-                  .join(' · ')}
+                  .join(" · ")}
               </Text>
             )}
           </View>
@@ -175,12 +193,13 @@ function InvoiceCard({item}: {item: InvoiceSummary}) {
   );
 }
 
-function PatientRow({item, isLast, onSelect}: any) {
+function PatientRow({ item, isLast, onSelect }: any) {
   return (
     <TouchableOpacity
       activeOpacity={0.7}
       style={[styles.patientRow, isLast && styles.patientRowLast]}
-      onPress={() => onSelect(item)}>
+      onPress={() => onSelect(item)}
+    >
       <Avatar name={item.name} />
       <View style={styles.patientInfo}>
         <Text style={styles.patientName}>{item.name}</Text>
@@ -195,11 +214,11 @@ function PatientRow({item, isLast, onSelect}: any) {
 export default function Dashboard() {
   const navigation = useNavigation<any>();
   const [invoiceModal, setInvoiceModal] = useState(false);
-  const [query, setQuery] = useState('');
-  const [newName, setNewName] = useState('');
-  const [newPhone, setNewPhone] = useState('');
-  const [newAddress, setNewAddress] = useState('');
-  const [newRegNumber, setNewRegNumber] = useState('');
+  const [query, setQuery] = useState("");
+  const [newName, setNewName] = useState("");
+  const [newPhone, setNewPhone] = useState("");
+  const [newAddress, setNewAddress] = useState("");
+  const [newRegNumber, setNewRegNumber] = useState("");
   const [invoices, setInvoices] = useState<InvoiceSummary[]>([]);
   const [patients, setPatients] = useState<PatientListItem[]>([]);
 
@@ -222,66 +241,67 @@ export default function Dashboard() {
 
   const paidTotal =
     invoices
-      .filter(i => i.status === 'Paid')
+      .filter((i) => i.status === "Paid")
       .reduce((sum, i) => sum + parseAmt(i.amount), 0) +
     invoices
-      .filter(i => i.status === 'Partial')
+      .filter((i) => i.status === "Partial")
       .reduce((sum, i) => sum + (i.totalPaid ?? 0), 0);
   const partialTotal = invoices
-    .filter(i => i.status === 'Partial')
+    .filter((i) => i.status === "Partial")
     .reduce(
       (sum, i) =>
         sum + ((i.payable ?? parseAmt(i.amount)) - (i.totalPaid ?? 0)),
       0,
     );
   const unpaidTotal = invoices
-    .filter(i => i.status === 'Unpaid')
+    .filter((i) => i.status === "Unpaid")
     .reduce((sum, i) => sum + parseAmt(i.amount), 0);
 
   const stats = [
     {
-      label: 'PAID',
-      count: invoices.filter(i => i.status === 'Paid' || i.status === 'Partial')
-        .length,
-      amount: `₹${paidTotal.toLocaleString('en-IN')}`,
-      color: '#4DB6A4',
+      label: "PAID",
+      count: invoices.filter(
+        (i) => i.status === "Paid" || i.status === "Partial",
+      ).length,
+      amount: `₹${paidTotal.toLocaleString("en-IN")}`,
+      color: "#4DB6A4",
       icon: <CheckCircle2 size={18} color="#FFFFFF" strokeWidth={2.5} />,
     },
     {
-      label: 'PARTIAL',
-      count: invoices.filter(i => i.status === 'Partial').length,
-      amount: `₹${partialTotal.toLocaleString('en-IN')}`,
-      color: '#7BA4C7',
+      label: "PARTIAL",
+      count: invoices.filter((i) => i.status === "Partial").length,
+      amount: `₹${partialTotal.toLocaleString("en-IN")}`,
+      color: "#7BA4C7",
       icon: <AlertCircle size={18} color="#FFFFFF" strokeWidth={2.5} />,
     },
     {
-      label: 'UNPAID',
-      count: invoices.filter(i => i.status === 'Unpaid').length,
-      amount: `₹${unpaidTotal.toLocaleString('en-IN')}`,
-      color: '#D48B7A',
+      label: "UNPAID",
+      count: invoices.filter((i) => i.status === "Unpaid").length,
+      amount: `₹${unpaidTotal.toLocaleString("en-IN")}`,
+      color: "#D48B7A",
       icon: <XCircle size={18} color="#FFFFFF" strokeWidth={2.5} />,
     },
   ];
 
   const filtered = patients.filter(
-    p =>
+    (p) =>
       p.name.toLowerCase().includes(query.toLowerCase()) ||
       p.reg.toLowerCase().includes(query.toLowerCase()),
   );
 
   const handleSelectPatient = (patient: PatientListItem) => {
-    navigation.navigate('NewInvoice', {patient});
+    navigation.navigate("NewInvoice", { patient });
     setInvoiceModal(false);
   };
 
   const handleUseNewPatient = async () => {
     if (!newName.trim()) {
-      Alert.alert('Required', "Please enter the patient's full name.");
+      Alert.alert("Required", "Please enter the patient's full name.");
       return;
     }
-    const phoneDigits = newPhone.replace(/\D/g, '');
+    const phoneDigits = newPhone.replace(/\D/g, "");
     if (newPhone.trim() && phoneDigits.length !== 10) {
-      Alert.alert('Error', 'Phone number must be exactly 10 digits.');
+      Alert.alert("Error", "Phone number must be exactly 10 digits.");
       return;
     }
     try {
@@ -295,33 +315,33 @@ export default function Dashboard() {
         reg,
       });
       await loadData();
-      navigation.navigate('NewInvoice', {patient: saved});
+      navigation.navigate("NewInvoice", { patient: saved });
       setInvoiceModal(false);
-      setNewName('');
-      setNewPhone('');
-      setNewAddress('');
-      setNewRegNumber('');
+      setNewName("");
+      setNewPhone("");
+      setNewAddress("");
+      setNewRegNumber("");
     } catch (error: any) {
-      Alert.alert('Error', error?.message || 'Failed to create patient.');
+      Alert.alert("Error", error?.message || "Failed to create patient.");
     }
   };
 
   const handleExport = async () => {
-    if (Platform.OS === 'android' && (Platform.Version as number) < 29) {
+    if (Platform.OS === "android" && (Platform.Version as number) < 29) {
       try {
         const result = await PermissionsAndroid.request(
           PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
           {
-            title: 'Storage Permission',
-            message: 'VedaBill needs storage access to export invoices.',
-            buttonPositive: 'Allow',
-            buttonNegative: 'Deny',
+            title: "Storage Permission",
+            message: "VedaBill needs storage access to export invoices.",
+            buttonPositive: "Allow",
+            buttonNegative: "Deny",
           },
         );
         if (result !== PermissionsAndroid.RESULTS.GRANTED) {
           Alert.alert(
-            'Permission Required',
-            'Storage permission is required to export invoices.',
+            "Permission Required",
+            "Storage permission is required to export invoices.",
           );
           return;
         }
@@ -329,26 +349,26 @@ export default function Dashboard() {
         return;
       }
     }
-    const rows = invoices.map(i => ({
+    const rows = invoices.map((i) => ({
       Name: i.name,
-      'Patient ID': i.reg,
+      "Patient ID": i.reg,
       Date: i.date,
-      'Invoice ID': i.invoice,
-      'Total Amount': i.payable || 0,
-      'Received Amount': i.totalPaid || 0,
-      'Due Amount': (i.payable || 0) - (i.totalPaid || 0),
-      'Payment Status': i.status,
+      "Invoice ID": i.invoice,
+      "Total Amount": i.payable || 0,
+      "Received Amount": i.totalPaid || 0,
+      "Due Amount": (i.payable || 0) - (i.totalPaid || 0),
+      "Payment Status": i.status,
     }));
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Invoices');
-    const wbOut = XLSX.write(wb, {type: 'base64', bookType: 'xlsx'});
+    XLSX.utils.book_append_sheet(wb, ws, "Invoices");
+    const wbOut = XLSX.write(wb, { type: "base64", bookType: "xlsx" });
     const now = new Date();
-    const dd = String(now.getDate()).padStart(2, '0');
-    const mm = String(now.getMonth() + 1).padStart(2, '0');
-    const hh = String(now.getHours()).padStart(2, '0');
-    const min = String(now.getMinutes()).padStart(2, '0');
-    const ss = String(now.getSeconds()).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, "0");
+    const mm = String(now.getMonth() + 1).padStart(2, "0");
+    const hh = String(now.getHours()).padStart(2, "0");
+    const min = String(now.getMinutes()).padStart(2, "0");
+    const ss = String(now.getSeconds()).padStart(2, "0");
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth() + 1;
     const fyStart = currentMonth >= 4 ? currentYear : currentYear - 1;
@@ -357,62 +377,69 @@ export default function Dashboard() {
     const fileName = `Invoice_VMC_${fy}_${dd}_${mm}_${hh}${min}${ss}.xlsx`;
     try {
       const destPath = `${RNFS.DownloadDirectoryPath}/${fileName}`;
-      await RNFS.writeFile(destPath, wbOut, 'base64');
+      await RNFS.writeFile(destPath, wbOut, "base64");
       try {
         await RNFS.scanFile(destPath);
       } catch {}
       Alert.alert(
-        'Exported',
+        "Exported",
         `Excel file saved to ${
-          Platform.OS === 'android' ? 'Downloads' : 'Documents'
+          Platform.OS === "android" ? "Downloads" : "Documents"
         } as ${fileName}.`,
       );
     } catch (error: any) {
       try {
         const fallbackPath = `${RNFS.ExternalDirectoryPath}/${fileName}`;
-        await RNFS.writeFile(fallbackPath, wbOut, 'base64');
+        await RNFS.writeFile(fallbackPath, wbOut, "base64");
         await Share.open({
           urls: [`file://${fallbackPath}`],
-          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
           failOnCancel: false,
         });
         Alert.alert(
-          'Exported',
-          'Excel file saved. Use Save to Files from the share sheet to store it in Downloads.',
+          "Exported",
+          "Excel file saved. Use Save to Files from the share sheet to store it in Downloads.",
         );
       } catch (shareError: any) {
-        if (shareError?.message !== 'User did not share') {
-          Alert.alert('Error', shareError?.message || 'Failed to export.');
+        if (shareError?.message !== "User did not share") {
+          Alert.alert("Error", shareError?.message || "Failed to export.");
         }
       }
     }
   };
 
+  const greeting = (() => {
+    const h = new Date().getHours();
+    if (h < 12) return "Good morning";
+    if (h < 17) return "Good afternoon";
+    return "Good evening";
+  })();
+
+  const today = new Date().toLocaleDateString("en-IN", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+
   return (
-    <SafeAreaView style={styles.safe}>
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.headerTitle}>Good evening, Dr. Yash</Text>
-          <Text style={styles.headerSub}>
-            {new Date().toLocaleDateString('en-IN', {
-              weekday: 'long',
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric',
-            })}
-          </Text>
-        </View>
-      </View>
+    <ScreenWrapper
+      title={`${greeting}, Dr. Yash`}
+      subtitle={today}
+      scrollable={false}
+    >
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.container}
-        showsVerticalScrollIndicator={false}>
+        showsVerticalScrollIndicator={false}
+      >
         {/* Stats Row */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.statsRow}>
-          {stats.map(s => (
+          contentContainerStyle={styles.statsRow}
+        >
+          {stats.map((s) => (
             <StatCard
               key={s.label}
               label={s.label}
@@ -428,20 +455,19 @@ export default function Dashboard() {
         {/* Recent Invoices */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>RECENT INVOICES</Text>
-          <View style={styles.sectionActions}>
-            <TouchableOpacity
-              style={styles.addBtn}
-              onPress={() => setInvoiceModal(true)}>
-              <Plus size={14} color="#FFFFFF" strokeWidth={2.5} />
-              <Text style={styles.addBtnText}>Add Invoice</Text>
+          <TouchableOpacity
+            style={styles.addBtn}
+            onPress={() => setInvoiceModal(true)}
+          >
+            <Plus size={14} color="#FFFFFF" strokeWidth={2.5} />
+            <Text style={styles.addBtnText}>Add Invoice</Text>
+          </TouchableOpacity>
+          {invoices.length > 0 && (
+            <TouchableOpacity style={styles.exportBtn} onPress={handleExport}>
+              <Download size={14} color={COLORS.teal} strokeWidth={2.5} />
+              <Text style={styles.exportBtnText}>Export</Text>
             </TouchableOpacity>
-            {invoices.length > 0 && (
-              <TouchableOpacity style={styles.exportBtn} onPress={handleExport}>
-                <Download size={14} color={COLORS.teal} strokeWidth={2.5} />
-                <Text style={styles.exportBtnText}>Export</Text>
-              </TouchableOpacity>
-            )}
-          </View>
+          )}
         </View>
 
         <View style={styles.invoiceListContainer}>
@@ -449,7 +475,7 @@ export default function Dashboard() {
             <InvoiceCard key={item.invoice} item={item} />
           ))}
           {invoices.length > 5 && (
-            <TouchableOpacity onPress={() => navigation.navigate('Invoices')}>
+            <TouchableOpacity onPress={() => navigation.navigate("Invoices")}>
               <Text style={styles.viewAll}>View all invoices...</Text>
             </TouchableOpacity>
           )}
@@ -461,10 +487,12 @@ export default function Dashboard() {
         visible={invoiceModal}
         transparent
         animationType="slide"
-        onRequestClose={() => setInvoiceModal(false)}>
+        onRequestClose={() => setInvoiceModal(false)}
+      >
         <KeyboardAvoidingView
           style={styles.modalOverlay}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+        >
           <View style={styles.modalSheet}>
             <View style={styles.modalHandle} />
             <View style={styles.modalHeader}>
@@ -477,7 +505,8 @@ export default function Dashboard() {
             <ScrollView
               style={styles.modalBody}
               showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled">
+              keyboardShouldPersistTaps="handled"
+            >
               {/* Step indicator */}
               <View style={styles.stepIndicator}>
                 <View style={styles.stepItem}>
@@ -522,7 +551,7 @@ export default function Dashboard() {
               {/* Select Existing Patient Section */}
               <View style={styles.sectionHeaderRow}>
                 <View
-                  style={[styles.sectionDot, {backgroundColor: COLORS.teal}]}
+                  style={[styles.sectionDot, { backgroundColor: COLORS.teal }]}
                 />
                 <Text style={styles.sectionHeading}>
                   SELECT EXISTING PATIENT
@@ -556,9 +585,12 @@ export default function Dashboard() {
               {/* Add New Patient Section */}
               <View style={styles.sectionHeaderRow}>
                 <View
-                  style={[styles.sectionDot, {backgroundColor: COLORS.orange}]}
+                  style={[
+                    styles.sectionDot,
+                    { backgroundColor: COLORS.orange },
+                  ]}
                 />
-                <Text style={[styles.sectionHeading, {color: COLORS.orange}]}>
+                <Text style={[styles.sectionHeading, { color: COLORS.orange }]}>
                   ADD NEW PATIENT
                 </Text>
               </View>
@@ -579,20 +611,22 @@ export default function Dashboard() {
                   <Text style={styles.fieldLabel}>PATIENT ID (OPTIONAL)</Text>
                   <View
                     style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
+                      flexDirection: "row",
+                      alignItems: "center",
                       gap: 4,
-                    }}>
+                    }}
+                  >
                     <Text
                       style={{
                         fontSize: 14,
-                        fontWeight: '600',
+                        fontWeight: "600",
                         color: COLORS.textSecondary,
-                      }}>
+                      }}
+                    >
                       VMCPTREG-
                     </Text>
                     <TextInput
-                      style={[styles.input, {flex: 1}]}
+                      style={[styles.input, { flex: 1 }]}
                       value={newRegNumber}
                       onChangeText={setNewRegNumber}
                       keyboardType="number-pad"
@@ -631,45 +665,22 @@ export default function Dashboard() {
               <TouchableOpacity
                 style={styles.useBtn}
                 activeOpacity={0.85}
-                onPress={handleUseNewPatient}>
+                onPress={handleUseNewPatient}
+              >
                 <UserPlus size={18} color={COLORS.bg} strokeWidth={2.5} />
                 <Text style={styles.useBtnText}>Create & Continue</Text>
               </TouchableOpacity>
 
-              <View style={{height: 20}} />
+              <View style={{ height: 20 }} />
             </ScrollView>
           </View>
         </KeyboardAvoidingView>
       </Modal>
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 }
 
 const styles = StyleSheet.create({
-  header: {
-    backgroundColor: COLORS.teal,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 20,
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: COLORS.headerText,
-    letterSpacing: -0.5,
-  },
-  headerSub: {
-    fontSize: 13,
-    color: COLORS.headerSub,
-    marginTop: 2,
-  },
-  safe: {
-    flex: 1,
-    backgroundColor: COLORS.bg,
-  },
   scroll: {
     flex: 1,
   },
@@ -684,14 +695,14 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: 22,
     backgroundColor: COLORS.teal,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     flexShrink: 0,
   },
   avatarText: {
     fontSize: 16,
-    fontWeight: '700',
-    color: '#FFFFFF',
+    fontWeight: "700",
+    color: "#FFFFFF",
   },
 
   // Stats
@@ -705,16 +716,16 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     padding: 14,
     paddingHorizontal: 16,
-    overflow: 'hidden',
+    overflow: "hidden",
     gap: 4,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOpacity: 0.12,
     shadowRadius: 12,
-    shadowOffset: {width: 0, height: 4},
+    shadowOffset: { width: 0, height: 4 },
     elevation: 6,
   },
   decoCircle1: {
-    position: 'absolute',
+    position: "absolute",
     width: 75,
     height: 75,
     borderRadius: 38,
@@ -722,7 +733,7 @@ const styles = StyleSheet.create({
     right: -16,
   },
   decoCircle2: {
-    position: 'absolute',
+    position: "absolute",
     width: 50,
     height: 50,
     borderRadius: 25,
@@ -730,7 +741,7 @@ const styles = StyleSheet.create({
     left: -12,
   },
   decoCircle3: {
-    position: 'absolute',
+    position: "absolute",
     width: 32,
     height: 32,
     borderRadius: 16,
@@ -738,34 +749,34 @@ const styles = StyleSheet.create({
     right: 36,
   },
   statIconRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
   statIconBg: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "rgba(255,255,255,0.2)",
+    alignItems: "center",
+    justifyContent: "center",
   },
   statPct: {
     fontSize: 12,
-    fontWeight: '700',
-    color: 'rgba(255,255,255,0.8)',
+    fontWeight: "700",
+    color: "rgba(255,255,255,0.8)",
   },
   statBigCount: {
     fontSize: 26,
-    fontWeight: '800',
-    color: '#FFFFFF',
+    fontWeight: "800",
+    color: "#FFFFFF",
     letterSpacing: -1,
     lineHeight: 28,
   },
   statWhiteLabel: {
     fontSize: 11,
-    fontWeight: '700',
-    color: 'rgba(255,255,255,0.7)',
+    fontWeight: "700",
+    color: "rgba(255,255,255,0.7)",
     letterSpacing: 1,
   },
   statBottomRow: {
@@ -775,40 +786,40 @@ const styles = StyleSheet.create({
   statBarBg: {
     height: 4,
     borderRadius: 2,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    overflow: 'hidden',
+    backgroundColor: "rgba(255,255,255,0.2)",
+    overflow: "hidden",
   },
   statBarFill2: {
-    height: '100%',
+    height: "100%",
     borderRadius: 2,
   },
   statAmountWhite: {
     fontSize: 12,
-    fontWeight: '600',
-    color: 'rgba(255,255,255,0.9)',
+    fontWeight: "600",
+    color: "rgba(255,255,255,0.9)",
   },
 
   // Section title
   sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 12,
   },
   sectionTitle: {
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: "700",
     color: COLORS.teal,
     letterSpacing: 1.2,
   },
   sectionActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 8,
   },
   addBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 4,
     backgroundColor: COLORS.teal,
     borderRadius: 10,
@@ -817,12 +828,12 @@ const styles = StyleSheet.create({
   },
   addBtnText: {
     fontSize: 12,
-    fontWeight: '700',
-    color: '#FFFFFF',
+    fontWeight: "700",
+    color: "#FFFFFF",
   },
   exportBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 4,
     paddingHorizontal: 10,
     paddingVertical: 5,
@@ -832,7 +843,7 @@ const styles = StyleSheet.create({
   },
   exportBtnText: {
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: "700",
     color: COLORS.teal,
   },
 
@@ -843,14 +854,14 @@ const styles = StyleSheet.create({
 
   // Individual invoice card
   invoiceCard: {
-    flexDirection: 'row',
+    flexDirection: "row",
     backgroundColor: COLORS.card,
     borderRadius: 14,
-    overflow: 'hidden',
-    shadowColor: '#000',
+    overflow: "hidden",
+    shadowColor: "#000",
     shadowOpacity: 0.05,
     shadowRadius: 6,
-    shadowOffset: {width: 0, height: 2},
+    shadowOffset: { width: 0, height: 2 },
     elevation: 2,
   },
   invoiceAccent: {
@@ -864,8 +875,8 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   invoiceTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 10,
   },
   invoiceInfo: {
@@ -873,7 +884,7 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   invoiceRight: {
-    alignItems: 'flex-end',
+    alignItems: "flex-end",
     gap: 4,
     flexShrink: 0,
   },
@@ -882,23 +893,23 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.border,
   },
   invoiceMid: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
   invoiceBottom: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
   invoiceBottomRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 4,
   },
   invoiceChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 5,
     backgroundColor: COLORS.tealBg,
     paddingHorizontal: 10,
@@ -907,7 +918,7 @@ const styles = StyleSheet.create({
   },
   invoiceChipText: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.teal,
   },
   invoiceDate: {
@@ -917,20 +928,20 @@ const styles = StyleSheet.create({
   partialPayments: {
     fontSize: 12,
     color: COLORS.violet,
-    fontWeight: '500',
+    fontWeight: "500",
     marginTop: -4,
   },
   viewAll: {
-    textAlign: 'center',
+    textAlign: "center",
     color: COLORS.teal,
     paddingVertical: 12,
-    fontWeight: '600',
+    fontWeight: "600",
     fontSize: 13,
   },
 
   invoiceName: {
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: "700",
     color: COLORS.textPrimary,
     letterSpacing: -0.3,
   },
@@ -941,7 +952,7 @@ const styles = StyleSheet.create({
   },
   invoiceAmount: {
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: "700",
     color: COLORS.teal,
     letterSpacing: -0.3,
   },
@@ -949,8 +960,8 @@ const styles = StyleSheet.create({
   // Modal
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'flex-end',
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "flex-end",
   },
   modalSheet: {
     backgroundColor: COLORS.card,
@@ -959,25 +970,25 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingHorizontal: 20,
     paddingBottom: 32,
-    maxHeight: '85%',
+    maxHeight: "85%",
   },
   modalHandle: {
-    alignSelf: 'center',
+    alignSelf: "center",
     width: 40,
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#CBD5E1',
+    backgroundColor: "#CBD5E1",
     marginBottom: 16,
   },
   modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     marginBottom: 12,
   },
   modalTitle: {
     fontSize: 20,
-    fontWeight: '800',
+    fontWeight: "800",
     color: COLORS.textPrimary,
   },
   modalBody: {
@@ -986,14 +997,14 @@ const styles = StyleSheet.create({
 
   // Step indicator
   stepIndicator: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "center",
     marginBottom: 18,
     paddingHorizontal: 8,
   },
   stepItem: {
-    alignItems: 'center',
+    alignItems: "center",
     width: 64,
   },
   stepCircle: {
@@ -1003,27 +1014,27 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.bg,
     borderWidth: 2,
     borderColor: COLORS.border,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     marginBottom: 4,
   },
   stepCircleActive: {
     backgroundColor: COLORS.teal,
     borderColor: COLORS.teal,
     shadowColor: COLORS.teal,
-    shadowOffset: {width: 0, height: 2},
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 6,
     elevation: 4,
   },
   stepNumberActive: {
     fontSize: 11,
-    fontWeight: '700',
-    color: '#FFFFFF',
+    fontWeight: "700",
+    color: "#FFFFFF",
   },
   stepNumberInactive: {
     fontSize: 11,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.textMuted,
   },
   stepConnector: {
@@ -1040,18 +1051,18 @@ const styles = StyleSheet.create({
   },
   stepLabel: {
     fontSize: 11,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.textMuted,
   },
   stepLabelActive: {
     color: COLORS.teal,
-    fontWeight: '700',
+    fontWeight: "700",
   },
 
   // Section headers in modal
   sectionHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 8,
     marginBottom: 10,
   },
@@ -1062,15 +1073,15 @@ const styles = StyleSheet.create({
   },
   sectionHeading: {
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: "800",
     color: COLORS.teal,
     letterSpacing: 0.8,
   },
 
   // OR divider
   orDivider: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 12,
     marginVertical: 18,
   },
@@ -1081,7 +1092,7 @@ const styles = StyleSheet.create({
   },
   orText: {
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: "700",
     color: COLORS.textMuted,
     letterSpacing: 1,
   },
@@ -1106,8 +1117,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   patientRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingVertical: 14,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
@@ -1122,7 +1133,7 @@ const styles = StyleSheet.create({
   },
   patientName: {
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: "700",
     color: COLORS.textPrimary,
     letterSpacing: -0.2,
   },
@@ -1131,7 +1142,7 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
   },
   emptyText: {
-    textAlign: 'center',
+    textAlign: "center",
     color: COLORS.textSecondary,
     paddingVertical: 20,
     fontSize: 13,
@@ -1152,7 +1163,7 @@ const styles = StyleSheet.create({
   },
   fieldLabel: {
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: "700",
     color: COLORS.label,
     letterSpacing: 0.8,
   },
@@ -1169,24 +1180,24 @@ const styles = StyleSheet.create({
 
   // Use button
   useBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     gap: 8,
     backgroundColor: COLORS.teal,
     borderRadius: 14,
     paddingVertical: 16,
     marginTop: 14,
     shadowColor: COLORS.teal,
-    shadowOffset: {width: 0, height: 4},
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
   },
   useBtnText: {
     fontSize: 15,
-    fontWeight: '700',
-    color: '#FFFFFF',
+    fontWeight: "700",
+    color: "#FFFFFF",
     letterSpacing: 0.1,
   },
 
@@ -1198,6 +1209,6 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: "600",
   },
 });

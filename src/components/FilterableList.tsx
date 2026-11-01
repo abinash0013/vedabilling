@@ -1,6 +1,7 @@
 import React from 'react';
-import {View, Text, FlatList, StyleSheet} from 'react-native';
+import {View, Text, FlatList, StyleSheet, ViewStyle} from 'react-native';
 import SearchBar from './SearchBar';
+import SkeletonLoader from './SkeletonLoader';
 import COLORS from '../constants/colors';
 
 interface FilterableListProps<T> {
@@ -8,65 +9,92 @@ interface FilterableListProps<T> {
   searchValue: string;
   onSearchChange: (text: string) => void;
   searchPlaceholder?: string;
-  filterFn: (item: T, query: string) => boolean;
-  keyExtractor: (item: T) => string;
+  searchKeys?: (keyof T & string)[];
+  filterFn?: (item: T, query: string) => boolean;
+  keyExtractor?: (item: T) => string;
   renderItem: (item: T, index: number, isLast: boolean) => React.ReactElement;
-  headerTitle: string;
-  headerCount?: string;
-  emptyText?: string;
-  searchStyle?: object;
-  listStyle?: object;
+  loading?: boolean;
+  skeletonCount?: number;
+  emptyIcon?: React.ReactElement;
+  emptyTitle?: string;
+  emptySub?: string;
+  searchStyle?: ViewStyle;
+  listStyle?: ViewStyle;
+  contentContainerStyle?: ViewStyle;
+  children?: React.ReactNode;
 }
 
-export default function FilterableList<T>({
+export default function FilterableList<T extends Record<string, any>>({
   data,
   searchValue,
   onSearchChange,
   searchPlaceholder = 'Search...',
+  searchKeys,
   filterFn,
-  keyExtractor,
+  keyExtractor = (item: any) => item.id ?? item.key ?? item.reg ?? String(item),
   renderItem,
-  headerTitle,
-  headerCount,
-  emptyText = 'No items found',
+  loading = false,
+  skeletonCount = 5,
+  emptyIcon,
+  emptyTitle = 'No items found',
+  emptySub,
   searchStyle,
   listStyle,
+  contentContainerStyle,
+  children,
 }: FilterableListProps<T>) {
   const filtered = searchValue.trim()
-    ? data.filter(item => filterFn(item, searchValue.toLowerCase()))
+    ? data.filter(item =>
+        filterFn
+          ? filterFn(item, searchValue.toLowerCase())
+          : searchKeys?.some(key =>
+              String(item[key] ?? '')
+                .toLowerCase()
+                .includes(searchValue.toLowerCase()),
+            ) ?? false,
+      )
     : data;
+
+  if (loading) {
+    return <SkeletonLoader count={skeletonCount} />;
+  }
 
   return (
     <>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>{headerTitle}</Text>
-        <Text style={styles.headerSub}>
-          {headerCount
-            ? headerCount
-            : searchValue.trim()
-            ? `${filtered.length} of ${data.length}`
-            : `${data.length} total`}
-        </Text>
-      </View>
       <SearchBar
         value={searchValue}
         onChangeText={onSearchChange}
         placeholder={searchPlaceholder}
         style={[styles.searchMargin, searchStyle]}
       />
+      {children}
       <FlatList
         data={filtered}
         keyExtractor={keyExtractor}
-        style={{flex: 1}}
-        contentContainerStyle={[styles.list, listStyle]}
+        style={styles.flatList}
+        contentContainerStyle={[
+          styles.list,
+          filtered.length === 0 && styles.listEmpty,
+          contentContainerStyle,
+          listStyle,
+        ]}
+        showsVerticalScrollIndicator={false}
         renderItem={({item, index}) =>
           renderItem(item, index, index === filtered.length - 1)
         }
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Text style={styles.emptyText}>
-              {searchValue.trim() ? 'No results match your search' : emptyText}
+            {emptyIcon && <View style={styles.emptyIcon}>{emptyIcon}</View>}
+            <Text style={styles.emptyTitle}>
+              {searchValue.trim() ? 'No results match your search' : emptyTitle}
             </Text>
+            {emptySub && (
+              <Text style={styles.emptySub}>
+                {searchValue.trim()
+                  ? 'Try a different search term'
+                  : emptySub}
+              </Text>
+            )}
           </View>
         }
       />
@@ -75,39 +103,45 @@ export default function FilterableList<T>({
 }
 
 const styles = StyleSheet.create({
-  header: {
-    backgroundColor: COLORS.teal,
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 20,
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: COLORS.headerText,
-    letterSpacing: -0.5,
-  },
-  headerSub: {
-    fontSize: 14,
-    color: COLORS.headerSub,
-    marginTop: 3,
-  },
   searchMargin: {
     marginHorizontal: 16,
     marginTop: 12,
+  },
+  flatList: {
+    flex: 1,
   },
   list: {
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 90,
-    gap: 14,
+    gap: 12,
+  },
+  listEmpty: {
+    flexGrow: 1,
   },
   empty: {
+    flex: 1,
     alignItems: 'center',
-    paddingTop: 60,
+    justifyContent: 'center',
+    gap: 8,
   },
-  emptyText: {
-    fontSize: 16,
+  emptyIcon: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: COLORS.tealBg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  emptyTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: COLORS.textPrimary,
+  },
+  emptySub: {
+    fontSize: 13,
     color: COLORS.textSecondary,
+    textAlign: 'center',
   },
 });
