@@ -1,4 +1,4 @@
-import {useState, useCallback} from 'react';
+import { useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -9,70 +9,71 @@ import {
   ScrollView,
   TouchableOpacity,
   KeyboardAvoidingView,
-} from 'react-native';
+} from "react-native";
 import {
   useRoute,
   useNavigation,
   useFocusEffect,
-} from '@react-navigation/native';
+} from "@react-navigation/native";
 import {
   updatePatient,
   getFullInvoice,
   getPatientByReg,
   getInvoicesByPatient,
-} from '../../database';
+} from "../../database";
 
-import type {Patient, InvoiceSummary} from '../../types';
-import BASE from '../../constants/colors';
-import ScreenWrapper, {BackButton} from '../../components/ScreenWrapper';
-import styles from './styles';
+import type { Patient, InvoiceSummary } from "../../types";
+import BASE from "../../constants/colors";
+import ScreenWrapper, { BackButton } from "../../components/ScreenWrapper";
+import styles from "./styles";
 
 const COLORS = {
   ...BASE,
-  textSecondary: '#9AAFAC',
-  textMuted: '#B0C4C1',
-  border: '#E8F0EF',
-  headerSub: 'rgba(255,255,255,0.7)',
+  textSecondary: "#9AAFAC",
+  textMuted: "#B0C4C1",
+  border: "#E8F0EF",
+  headerSub: "rgba(255,255,255,0.7)",
 };
 
-const STATUS_STYLE: Record<string, {bg: string; text: string}> = {
-  Paid: {bg: COLORS.greenLight, text: COLORS.green},
-  Unpaid: {bg: COLORS.redLight, text: COLORS.red},
-  Partial: {bg: COLORS.violetLight, text: COLORS.violet},
-  'Over Paid': {bg: COLORS.cyanLight, text: COLORS.cyan},
-  'Advance Paid': {bg: COLORS.skyBlueLight, text: COLORS.skyBlue},
-  'Partial Paid': {bg: COLORS.violetLight, text: COLORS.violet},
-  Due: {bg: COLORS.orangeLight, text: COLORS.orange},
+const STATUS_STYLE: Record<string, { bg: string; text: string }> = {
+  Paid: { bg: COLORS.greenLight, text: COLORS.green },
+  Unpaid: { bg: COLORS.redLight, text: COLORS.red },
+  Partial: { bg: COLORS.violetLight, text: COLORS.violet },
+  "Over Paid": { bg: COLORS.cyanLight, text: COLORS.cyan },
+  "Advance Paid": { bg: COLORS.skyBlueLight, text: COLORS.skyBlue },
+  "Partial Paid": { bg: COLORS.violetLight, text: COLORS.violet },
+  Due: { bg: COLORS.orangeLight, text: COLORS.orange },
 };
 
-function StatusBadge({status}: {status: string}) {
+function StatusBadge({ status }: { status: string }) {
   const s = STATUS_STYLE[status] || STATUS_STYLE.Paid;
   return (
-    <View style={[styles.badge, {backgroundColor: s.bg}]}>
-      <Text style={[styles.badgeText, {color: s.text}]}>{status}</Text>
+    <View style={[styles.badge, { backgroundColor: s.bg }]}>
+      <Text style={[styles.badgeText, { color: s.text }]}>{status}</Text>
     </View>
   );
 }
 
-function InvoiceRow({item, isLast, onPress}: any) {
-  const isPartial = item.status === 'Partial';
+function InvoiceRow({ item, isLast, onPress }: any) {
+  const isPartial = item.status === "Partial";
   const due = (item.payable ?? 0) - (item.totalPaid ?? 0);
   const hasPayments = (item.paymentCount ?? 0) > 0;
   return (
     <TouchableOpacity
       activeOpacity={0.7}
       onPress={onPress}
-      style={[styles.invoiceRow, isLast && styles.invoiceRowLast]}>
+      style={[styles.invoiceRow, isLast && styles.invoiceRowLast]}
+    >
       <View style={styles.invoiceLeft}>
         <Text style={styles.invoiceId}>{item.invoice}</Text>
         {isPartial && hasPayments && item.payments && (
-          <Text style={[styles.invoiceMeta, {color: COLORS.violet}]}>
+          <Text style={[styles.invoiceMeta, { color: COLORS.violet }]}>
             {item.payments
               .map(
-                (p: {amount: number; method: string}, idx: number) =>
-                  `P${idx + 1}: ₹${p.amount.toLocaleString('en-IN')}`,
+                (p: { amount: number; method: string }, idx: number) =>
+                  `P${idx + 1}: ₹${p.amount.toLocaleString("en-IN")}`,
               )
-              .join(' · ')}
+              .join(" · ")}
           </Text>
         )}
         <Text style={styles.invoiceMeta}>{item.date}</Text>
@@ -80,8 +81,8 @@ function InvoiceRow({item, isLast, onPress}: any) {
       <View style={styles.invoiceRight}>
         <Text style={styles.invoiceAmount}>{item.amount}</Text>
         {isPartial && due > 0 && (
-          <Text style={[styles.invoiceMeta, {color: COLORS.red}]}>
-            ₹{due.toLocaleString('en-IN')} due
+          <Text style={[styles.invoiceMeta, { color: COLORS.red }]}>
+            ₹{due.toLocaleString("en-IN")} due
           </Text>
         )}
         <StatusBadge status={item.status} />
@@ -90,7 +91,7 @@ function InvoiceRow({item, isLast, onPress}: any) {
   );
 }
 
-const parseAmt = (s: string) => Number(s.replace(/[^0-9]/g, ''));
+const parseAmt = (s: string) => Number(s.replace(/[^0-9]/g, ""));
 
 export default function PatientHistory() {
   const navigation = useNavigation<any>();
@@ -99,10 +100,10 @@ export default function PatientHistory() {
   const [patientInfo, setPatientInfo] = useState<Patient | null>(null);
   const [invoices, setInvoices] = useState<InvoiceSummary[]>([]);
   const [editModal, setEditModal] = useState(false);
-  const [editName, setEditName] = useState('');
-  const [editReg, setEditReg] = useState('');
-  const [editPhone, setEditPhone] = useState('');
-  const [editAddress, setEditAddress] = useState('');
+  const [editName, setEditName] = useState("");
+  const [editReg, setEditReg] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [editAddress, setEditAddress] = useState("");
 
   const openEdit = () => {
     if (!patientInfo) return;
@@ -118,11 +119,11 @@ export default function PatientHistory() {
     const trimmedName = editName.trim();
     const trimmedReg = editReg.trim();
     if (!trimmedName) {
-      Alert.alert('Error', 'Name is required.');
+      Alert.alert("Error", "Name is required.");
       return;
     }
     if (!trimmedReg) {
-      Alert.alert('Error', 'Patient ID is required.');
+      Alert.alert("Error", "Patient ID is required.");
       return;
     }
     try {
@@ -133,9 +134,9 @@ export default function PatientHistory() {
         reg: trimmedReg,
       });
       setEditModal(false);
-      navigation.navigate('Tabs', {screen: 'Patients'});
+      navigation.navigate("Tabs", { screen: "Patients" });
     } catch (e: any) {
-      Alert.alert('Error', e.message || 'Failed to update patient.');
+      Alert.alert("Error", e.message || "Failed to update patient.");
     }
   };
 
@@ -161,24 +162,24 @@ export default function PatientHistory() {
     try {
       const inv = await getFullInvoice(item.id);
       if (!inv) {
-        Alert.alert('Error', 'Invoice data not found.');
+        Alert.alert("Error", "Invoice data not found.");
         return;
       }
-      navigation.navigate('EBillGenerated', {
+      navigation.navigate("EBillGenerated", {
         showBack: true,
-        pdfPath: inv.pdfPath || '',
-        patient: {name: inv.patientName, reg: inv.patientReg},
+        pdfPath: inv.pdfPath || "",
+        patient: { name: inv.patientName, reg: inv.patientReg },
         billing: {
           invoiceNo: inv.invoiceNo,
           date: inv.invoiceDate,
           due: inv.dueDate,
           type: inv.billingType,
-          service: inv.items.map(i => i.name).join(' + ') || '—',
-          items: inv.items.map(i => ({
+          service: inv.items.map((i) => i.name).join(" + ") || "—",
+          items: inv.items.map((i) => ({
             name: i.name,
             unitPrice: i.unitPrice,
             qty: i.qty,
-            unit: i.unit || '',
+            unit: i.unit || "",
             amount: i.unitPrice * i.qty,
           })),
         },
@@ -186,10 +187,10 @@ export default function PatientHistory() {
           total: inv.total,
           discount: inv.discount,
           payable: inv.payable,
-          payments: inv.payments.map(p => ({
+          payments: inv.payments.map((p) => ({
             amount: p.amount,
             method: p.method,
-            date: p.date || '',
+            date: p.date || "",
           })),
           totalPaid: inv.totalPaid,
           extraPaid: inv.extraPaid,
@@ -198,40 +199,40 @@ export default function PatientHistory() {
         },
         note: inv.note,
         therapist: inv.therapist,
-        paymentReceiveDate: inv.paymentReceiveDate || '',
+        paymentReceiveDate: inv.paymentReceiveDate || "",
       });
     } catch {
-      Alert.alert('Error', 'Failed to load invoice.');
+      Alert.alert("Error", "Failed to load invoice.");
     }
   };
 
   const displayPatient = patientInfo || routePatient;
-  const patientName = displayPatient?.name || 'Unknown';
-  const patientReg = displayPatient?.reg || '';
+  const patientName = displayPatient?.name || "Unknown";
+  const patientReg = displayPatient?.reg || "";
 
   const totalInvoiceCount = invoices.length;
   const paidAmt =
     invoices
       .filter(
-        i =>
-          i.status === 'Paid' ||
-          i.status === 'Over Paid' ||
-          i.status === 'Advance Paid',
+        (i) =>
+          i.status === "Paid" ||
+          i.status === "Over Paid" ||
+          i.status === "Advance Paid",
       )
       .reduce((s, i) => s + parseAmt(i.amount), 0) +
     invoices
-      .filter(i => i.status === 'Partial' || i.status === 'Partial Paid')
+      .filter((i) => i.status === "Partial" || i.status === "Partial Paid")
       .reduce((s, i) => s + (i.totalPaid ?? 0), 0);
   const dueAmt = invoices
     .filter(
-      i =>
-        i.status === 'Unpaid' ||
-        i.status === 'Due' ||
-        i.status === 'Partial Paid' ||
-        i.status === 'Partial',
+      (i) =>
+        i.status === "Unpaid" ||
+        i.status === "Due" ||
+        i.status === "Partial Paid" ||
+        i.status === "Partial",
     )
     .reduce((s, i) => {
-      if (i.status === 'Partial Paid' || i.status === 'Partial') {
+      if (i.status === "Partial Paid" || i.status === "Partial") {
         return s + ((i.payable ?? parseAmt(i.amount)) - (i.totalPaid ?? 0));
       }
       return s + parseAmt(i.amount);
@@ -246,14 +247,17 @@ export default function PatientHistory() {
         <TouchableOpacity
           style={styles.editBtn}
           activeOpacity={0.8}
-          onPress={openEdit}>
+          onPress={openEdit}
+        >
           <Text style={styles.editIcon}>✎</Text>
         </TouchableOpacity>
-      }>
+      }
+    >
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.container}
-        showsVerticalScrollIndicator={false}>
+        showsVerticalScrollIndicator={false}
+      >
         {/* Contact card */}
         {patientInfo && (
           <View style={styles.contactCard}>
@@ -264,13 +268,13 @@ export default function PatientHistory() {
             <View style={styles.contactRow}>
               <Text style={styles.contactLabel}>Phone</Text>
               <Text style={styles.contactValue}>
-                {patientInfo.phone || '-'}
+                {patientInfo.phone || "-"}
               </Text>
             </View>
             <View style={[styles.contactRow, styles.contactRowLast]}>
               <Text style={styles.contactLabel}>Address</Text>
               <Text style={styles.contactValue}>
-                {patientInfo.address || '-'}
+                {patientInfo.address || "-"}
               </Text>
             </View>
           </View>
@@ -283,14 +287,14 @@ export default function PatientHistory() {
             <Text style={styles.statLabel}>INVOICES</Text>
           </View>
           <View style={[styles.statCard, styles.statCardBorder]}>
-            <Text style={[styles.statValue, {color: COLORS.green}]}>
-              ₹{paidAmt.toLocaleString('en-IN')}
+            <Text style={[styles.statValue, { color: COLORS.green }]}>
+              ₹{paidAmt.toLocaleString("en-IN")}
             </Text>
             <Text style={styles.statLabel}>PAID</Text>
           </View>
           <View style={styles.statCard}>
-            <Text style={[styles.statValue, {color: COLORS.red}]}>
-              ₹{dueAmt.toLocaleString('en-IN')}
+            <Text style={[styles.statValue, { color: COLORS.red }]}>
+              ₹{dueAmt.toLocaleString("en-IN")}
             </Text>
             <Text style={styles.statLabel}>DUE</Text>
           </View>
@@ -301,16 +305,15 @@ export default function PatientHistory() {
           style={styles.billingHistoryBtn}
           activeOpacity={0.85}
           onPress={() =>
-            navigation.navigate('AccountPaymentHistory', {
+            navigation.navigate("AccountPaymentHistory", {
               patientReg,
               patientName,
             })
-          }>
+          }
+        >
           <View style={styles.billingHistoryBtnLeft}>
             <Text style={styles.billingHistoryBtnIcon}>₹</Text>
-            <Text style={styles.billingHistoryBtnText}>
-              View Account Payment History
-            </Text>
+            <Text style={styles.billingHistoryBtnText}>Payment History</Text>
           </View>
           <Text style={styles.billingHistoryBtnArrow}>›</Text>
         </TouchableOpacity>
@@ -336,7 +339,7 @@ export default function PatientHistory() {
         {/* Footer */}
         <Text style={styles.footer}>
           <Text style={styles.footerBold}>Patient History</Text>
-          {' — totals and past invoices for one patient.'}
+          {" — totals and past invoices for one patient."}
         </Text>
       </ScrollView>
       {/* Edit Patient Modal */}
@@ -344,10 +347,12 @@ export default function PatientHistory() {
         visible={editModal}
         transparent
         animationType="fade"
-        onRequestClose={() => setEditModal(false)}>
+        onRequestClose={() => setEditModal(false)}
+      >
         <KeyboardAvoidingView
           style={styles.modalOverlay}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+        >
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Edit Patient</Text>
             <TextInput
@@ -385,7 +390,8 @@ export default function PatientHistory() {
             <View style={styles.modalActions}>
               <TouchableOpacity
                 style={styles.cancelBtn}
-                onPress={() => setEditModal(false)}>
+                onPress={() => setEditModal(false)}
+              >
                 <Text style={styles.cancelBtnText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.saveBtn} onPress={handleEditSave}>
